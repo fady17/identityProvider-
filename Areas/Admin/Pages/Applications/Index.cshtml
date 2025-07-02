@@ -1,0 +1,203 @@
+@page
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications.IndexModel
+@using OpenIddict.Abstractions
+@{
+    ViewData["Title"] = "Manage Client Applications";
+}
+
+@* CSS file for this page *@
+<link rel="stylesheet" href="~/css/applications-index.css" />
+
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-12 col-lg-8">
+                <div class="header-content">
+                    <div class="header-icon">
+                        <i class="fas fa-mobile-alt"></i> @* Or fas fa-cogs, fas fa-shield-alt *@
+                    </div>
+                    <div class="header-text">
+                        <h1>@ViewData["Title"]</h1>
+                        <p>Configure and monitor OpenID Connect client applications</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+                <div class="header-actions">
+                    @* Placeholder for a help modal if needed later *@
+                    @* <button class="btn btn-outline" data-bs-toggle="modal" data-bs-target="#appHelpModal">
+                        <i class="fas fa-question-circle"></i> Help
+                    </button> *@
+                    <a asp-page="./Create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Application</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+        </ol>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.FilterByProviderId.HasValue)
+    {
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-filter me-2"></i>
+                Showing applications linked to Provider: <strong>@Model.ProviderFilterName</strong> (ID: @Model.FilterByProviderId)
+            </div>
+            <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i> Clear Filter
+            </a>
+        </div>
+    }
+
+    <!-- Applications Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list-ul me-2"></i>Client Applications (@Model.Applications.Count)
+                </h5>
+                <div>
+                    @* Add search/filter controls here later if needed *@
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body p-0"> @* p-0 to make table flush with card edges if desired *@
+            @if (Model.Applications.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Display Name</th>
+                                <th>Client ID</th>
+                                <th class="d-none d-md-table-cell">Client Type</th>
+                                <th class="d-none d-lg-table-cell">Application Type</th>
+                                <th class="d-none d-lg-table-cell">Linked Provider</th>
+                                <th class="text-center d-none d-sm-table-cell">Redirect URIs</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var app in Model.Applications)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-page="./Details" asp-route-id="@app.Id" class="fw-bold">@Html.DisplayFor(modelItem => app.DisplayName)</a>
+                                    </td>
+                                    <td><code>@Html.DisplayFor(modelItem => app.ClientId)</code></td>
+                                    <td class="d-none d-md-table-cell">
+                                        @if (app.ClientType == OpenIddictConstants.ClientTypes.Confidential)
+                                        {
+                                            <span class="badge bg-warning text-dark">@app.ClientType</span>
+                                        }
+                                        else if (app.ClientType == OpenIddictConstants.ClientTypes.Public)
+                                        {
+                                            <span class="badge bg-info">@app.ClientType</span>
+                                        }
+                                        else
+                                        {
+                                            @app.ClientType
+                                        }
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">@(app.ApplicationType ?? "N/A")</td>
+                                    <td class="d-none d-lg-table-cell">
+                                        @if (app.ProviderId.HasValue)
+                                        {
+                                            <a asp-page="/Providers/Details" asp-area="Admin" asp-route-id="@app.ProviderId.Value" title="View Provider @app.ProviderName">
+                                                <i class="fas fa-building me-1"></i>@app.ProviderName
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">None</span>
+                                        }
+                                    </td>
+                                    <td class="text-center d-none d-sm-table-cell">
+                                        <span class="badge bg-secondary">@app.RedirectUriCount</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a asp-page="./Details" asp-route-id="@app.Id" class="btn btn-outline-info" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a asp-page="./Edit" asp-route-id="@app.Id" class="btn btn-outline-warning" title="Edit Application">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a asp-page="./Delete" asp-route-id="@app.Id" class="btn btn-outline-danger" title="Delete Application">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center p-5">
+                    <i class="fas fa-mobile-alt fa-3x text-muted mb-3"></i>
+                    <h4>No Client Applications Found</h4>
+                    @if (Model.FilterByProviderId.HasValue)
+                    {
+                        <p>There are no client applications currently linked to provider <strong>@Model.ProviderFilterName</strong>.</p>
+                        <a asp-page="./Create" asp-route-providerId="@Model.FilterByProviderId" class="btn btn-primary mt-2">
+                            <i class="fas fa-plus me-1"></i> Add Application for this Provider
+                        </a>
+                        <a asp-page="./Index" class="btn btn-outline-secondary mt-2 ms-2">
+                            View All Applications
+                        </a>
+                    }
+                    else
+                    {
+                        <p>Get started by registering your first client application.</p>
+                        <a asp-page="./Create" class="btn btn-primary btn-lg mt-2">
+                            <i class="fas fa-plus me-1"></i> Register First Application
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (Model.Applications.Any())
+        {
+            <div class="card-footer bg-light text-muted">
+                <small>Total applications: @Model.Applications.Count</small>
+                @* Add pagination controls here later if needed *@
+            </div>
+        }
+    </div>
+</div>

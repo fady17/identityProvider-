@@ -1,0 +1,103 @@
+@page "/Connect/Consent"
+@model Orjnz.IdentityProvider.Web.Pages.Connect.ConsentModel
+@{
+    ViewData["Title"] = "Authorize Application";
+    Layout = "/Pages/Shared/_Layout.cshtml"; // Assuming you have a layout
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h3 class="text-center">@ViewData["Title"]</h3>
+                </div>
+                <div class="card-body">
+                    <p class="lead text-center">
+                        The application <strong>@Model.ApplicationDisplayName</strong> (@Model.ClientId)
+                        is requesting access to your account.
+                    </p>
+
+                    <hr />
+
+                    @if (Model.ScopesToDisplay.Any())
+                    {
+                        <p>This application would like the following permissions:</p>
+                        <form method="post" id="consent-form">
+                            @* These hidden fields are crucial for the POST handler to reconstruct context *@
+                            <input type="hidden" asp-for="UserIdFromQuery" />
+                            <input type="hidden" asp-for="ClientId" />
+                            <input type="hidden" asp-for="RedirectUri" />
+                            <input type="hidden" asp-for="ResponseType" />
+                            <input type="hidden" asp-for="OriginalScopeParameter" />
+                            <input type="hidden" asp-for="State" />
+                            <input type="hidden" asp-for="Nonce" />
+                            <input type="hidden" asp-for="CodeChallenge" />
+                            <input type="hidden" asp-for="CodeChallengeMethod" />
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+
+                            <ul class="list-group mb-3">
+                                @for (int i = 0; i < Model.ScopesToDisplay.Count; i++)
+                                {
+                                    var scope = Model.ScopesToDisplay[i];
+                                    <li class="list-group-item">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input"
+                                                   name="Input.GrantedScopes" value="@scope.Value"
+                                                   id="scope_@Html.Raw(scope.Value.Replace(":", "_"))"  @* Ensure valid ID *@
+                                                   @(scope.PreSelected ? "checked" : "")
+                                                   @(scope.Required ? "disabled" : "") />
+                                            
+                                            @if(scope.Required) @* If required, it must be submitted if checked *@
+                                            {
+                                                <input type="hidden" name="Input.GrantedScopes" value="@scope.Value" />
+                                            }
+
+                                            <label class="form-check-label" for="scope_@Html.Raw(scope.Value.Replace(":", "_"))">
+                                                <strong>@scope.DisplayName</strong>
+                                            </label>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(scope.Description))
+                                        {
+                                            <small class="form-text text-muted d-block ms-4">@scope.Description</small>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <button type="submit" name="Input.Button" value="deny" class="btn btn-outline-danger me-md-2" formnovalidate>Deny</button>
+                                <button type="submit" name="Input.Button" value="accept" class="btn btn-primary">Accept</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            No specific permissions are being requested beyond basic sign-in.
+                            <form method="post" id="consent-form-no-scopes" class="mt-3">
+                                <input type="hidden" asp-for="UserIdFromQuery" />
+                                <input type="hidden" asp-for="ClientId" />
+                                <input type="hidden" asp-for="RedirectUri" />
+                                <input type="hidden" asp-for="ResponseType" />
+                                <input type="hidden" asp-for="OriginalScopeParameter" />
+                                <input type="hidden" asp-for="State" />
+                                <input type="hidden" asp-for="Nonce" />
+                                <input type="hidden" asp-for="CodeChallenge" />
+                                <input type="hidden" asp-for="CodeChallengeMethod" />
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" name="Input.Button" value="deny" class="btn btn-outline-danger me-md-2" formnovalidate>Deny</button>
+                                    <button type="submit" name="Input.Button" value="accept" class="btn btn-primary">Accept</button>
+                                </div>
+                            </form>
+                        </div>
+                    }
+                </div>
+                 <div class="card-footer text-muted text-center">
+                    <small>You are authorizing access to your data for @Model.ApplicationDisplayName.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

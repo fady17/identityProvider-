@@ -1,0 +1,104 @@
+@page "/Admin/Scopes/Delete/{id}"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes.DeleteModel
+@{
+    ViewData["Title"] = "Delete Scope";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Scopes</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-trash-alt text-danger" style="font-size: 2.5rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-0">@ViewData["Title"]</h1>
+        @if (Model.ScopeToDelete != null && !string.IsNullOrEmpty(Model.ScopeToDelete.Name))
+        {
+            <p class="text-muted mb-0">Confirm deletion of scope: <strong>@Model.ScopeToDelete.DisplayName</strong> (<code>@Model.ScopeToDelete.Name</code>)</p>
+        }
+    </div>
+</div>
+
+
+@if (Model.ScopeToDelete == null || string.IsNullOrEmpty(Model.ScopeToDelete.Id))
+{
+    <div class="alert alert-warning" role="alert">
+        Scope not found or ID was not specified.
+    </div>
+    <p>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Scope List
+        </a>
+    </p>
+}
+else
+{
+    if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Deletion Blocked</h5>
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4 @(Model.CanDelete ? "" : "border-danger")">
+        <div class="card-header @(Model.CanDelete ? "bg-light" : "bg-danger text-white")">
+            <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>Scope Details</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-4">Scope Name (Identifier)</dt>
+                <dd class="col-sm-8"><code>@Html.DisplayFor(model => model.ScopeToDelete.Name)</code></dd>
+
+                <dt class="col-sm-4">Display Name</dt>
+                <dd class="col-sm-8">@(Model.ScopeToDelete.DisplayName ?? Model.ScopeToDelete.Name)</dd>
+                
+                @if (Model.LinkedApplicationCount > 0)
+                {
+                    <dt class="col-sm-4 text-danger mt-2">Used by Applications</dt>
+                    <dd class="col-sm-8 text-danger mt-2">@Model.LinkedApplicationCount</dd>
+                }
+            </dl>
+        </div>
+    </div>
+
+    @if (Model.CanDelete)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Are you sure?</h4>
+            <p>You are about to permanently delete the scope <strong>@Model.ScopeToDelete.DisplayName</strong> (<code>@Model.ScopeToDelete.Name</code>).</p>
+            <p>This action cannot be undone. Client applications relying on this scope may lose access or functionality.</p>
+            <hr>
+            <form method="post" asp-route-id="@Model.ScopeToDelete.Id">
+                @Html.AntiForgeryToken()
+                @* ID is passed via asp-route-id, not strictly needed in form body if OnPost takes it as param *@
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i>Yes, Delete This Scope
+                </button>
+                <a asp-page="./Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>No, Cancel
+                </a>
+            </form>
+        </div>
+    }
+    else
+    {
+        <a asp-page="./Index" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Scope List
+        </a>
+         @if (Model.LinkedApplicationCount > 0)
+         {
+            @* This link would ideally go to the Applications/Index page, filtered by this scope (more complex to implement) *@
+            @* For now, just a general link or remove it if no direct filter by scope on app list *@
+            <a asp-page="/Applications/Index" asp-area="Admin" class="btn btn-info ms-2" title="View applications (manual filter needed for scope)">
+                <i class="fas fa-apps me-2"></i>View Applications
+            </a>
+         }
+    }
+}

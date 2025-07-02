@@ -1,0 +1,47 @@
+@page "/connect/logout"
+@model Orjnz.IdentityProvider.Web.Pages.Connect.LogoutModel
+@{
+    ViewData["Title"] = "Log out";
+    // If you have a separate layout for Connect pages:
+    // Layout = "/Pages/Connect/_LayoutConnect.cshtml";
+}
+
+<header>
+    <h1>@ViewData["Title"]</h1>
+</header>
+
+<div class="row">
+    <div class="col-md-6">
+        @if (User.Identity != null && User.Identity.IsAuthenticated) // Check if user is signed in via the cookie
+        {
+            <p>Are you sure you want to log out of <strong>@User.Identity.Name</strong>?</p>
+            <form asp-page-handler="Post" method="post">
+                @Html.AntiForgeryToken()
+                @* Preserve returnUrl if it was passed to the GET handler and is needed locally *@
+                @if (ViewData["ReturnUrl"] != null)
+                {
+                    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                }
+                <button type="submit" class="btn btn-danger">Yes, Log Out</button>
+                @if (ViewData["ReturnUrl"] != null)
+                {
+                    <a href="@ViewData["ReturnUrl"]" class="btn btn-secondary">Cancel</a>
+                }
+                else
+                {
+                    <a href="/" class="btn btn-secondary">Cancel</a>
+                }
+            </form>
+        }
+        else
+        {
+            <p>You have successfully logged out or were not logged in.</p>
+            <p><a asp-page="/Index">Return to Home Page</a></p>
+            @* Or, if an OIDC logout request might have specified a post_logout_redirect_uri,
+               OpenIddict's SignOut result would handle that redirect even if the user wasn't
+               locally signed in (e.g., for single logout scenarios where the session ended elsewhere).
+               So, typically, this "else" block might not be hit directly if an OIDC client initiated logout.
+            *@
+        }
+    </div>
+</div>

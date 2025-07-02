@@ -1,0 +1,143 @@
+@page "{id:guid}"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.DeleteModel
+@{
+    ViewData["Title"] = "Delete Provider";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Providers</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-trash-alt text-danger" style="font-size: 2rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-1">@ViewData["Title"]</h1>
+        @if (Model.ProviderToDelete != null)
+        {
+            <p class="text-muted mb-0">Confirm deletion of provider: <strong>@Model.ProviderToDelete.Name</strong></p>
+        }
+    </div>
+</div>
+
+
+@if (Model.ProviderToDelete == null)
+{
+    <div class="alert alert-warning" role="alert">
+        Provider not found or ID was not specified.
+    </div>
+    <p>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Provider List
+        </a>
+    </p>
+}
+else
+{
+    if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Deletion Blocked</h5>
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4 @(Model.CanDelete ? "" : "border-danger")">
+        <div class="card-header @(Model.CanDelete ? "bg-light" : "bg-danger text-white") d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Provider Details
+            </h5>
+            <div class="d-flex align-items-center">
+                <small class="me-2 @(Model.CanDelete ? "text-muted" : "")">ID:</small>
+                <code class="@(Model.CanDelete ? "text-muted" : "")">@Model.ProviderToDelete.Id</code>
+            </div>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-4">Name</dt>
+                <dd class="col-sm-8">@Html.DisplayFor(model => model.ProviderToDelete.Name)</dd>
+
+                <dt class="col-sm-4">Short Code</dt>
+                <dd class="col-sm-8"><code>@Html.DisplayFor(model => model.ProviderToDelete.ShortCode)</code></dd>
+
+                <dt class="col-sm-4">Website Domain</dt>
+                <dd class="col-sm-8">
+                    @if (!string.IsNullOrEmpty(Model.ProviderToDelete.WebsiteDomain))
+                    {
+                        @Html.DisplayFor(model => model.ProviderToDelete.WebsiteDomain)
+                    }
+                    else
+                    {
+                        <span class="text-muted">Not specified</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-4">Status</dt>
+                <dd class="col-sm-8">
+                    @if (Model.ProviderToDelete.IsActive)
+                    {
+                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary"><i class="fas fa-pause-circle me-1"></i>Inactive</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-4">Created At</dt>
+                <dd class="col-sm-8">@Model.ProviderToDelete.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</dd>
+
+                <dt class="col-sm-4">Last Updated At</dt>
+                <dd class="col-sm-8">@Model.ProviderToDelete.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</dd>
+                
+                @if (Model.LinkedApplicationCount > 0)
+                {
+                    <dt class="col-sm-4 text-danger mt-2">Linked Applications</dt>
+                    <dd class="col-sm-8 text-danger mt-2">@Model.LinkedApplicationCount</dd>
+                }
+            </dl>
+        </div>
+    </div>
+
+    @if (Model.CanDelete)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Are you sure?</h4>
+            <p>You are about to permanently delete the provider <strong>@Model.ProviderToDelete.Name</strong>.</p>
+            <p>This action cannot be undone. Any applications or configurations relying on this provider may cease to function correctly.</p>
+            <hr>
+            <form method="post" asp-route-id="@Model.ProviderToDelete.Id">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ProviderToDelete.Id" /> @* Ensure ID is part of the form post *@
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i>Yes, Delete Provider
+                </button>
+                <a asp-page="./Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>No, Cancel
+                </a>
+            </form>
+        </div>
+    }
+    else
+    {
+        <a asp-page="./Index" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Provider List
+        </a>
+         @if (Model.LinkedApplicationCount > 0)
+         {
+            <a asp-page="/Applications/Index" asp-area="Admin" asp-route-filterByProviderId="@Model.ProviderToDelete.Id" class="btn btn-info ms-2">
+                <i class="fas fa-apps me-2"></i>View Linked Applications
+            </a>
+         }
+    }
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

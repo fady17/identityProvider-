@@ -1,0 +1,106 @@
+@page "/Admin/Applications/Delete/{id}"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications.DeleteModel
+@using OpenIddict.Abstractions
+@{
+    ViewData["Title"] = "Delete Client Application";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Client Applications</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-trash-alt text-danger" style="font-size: 2.5rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-0">@ViewData["Title"]</h1>
+        @if (Model.ApplicationToDelete != null && !string.IsNullOrEmpty(Model.ApplicationToDelete.DisplayName))
+        {
+            <p class="text-muted mb-0">Confirm deletion of application: <strong>@Model.ApplicationToDelete.DisplayName</strong> (<code>@Model.ApplicationToDelete.ClientId</code>)</p>
+        }
+    </div>
+</div>
+
+@if (Model.ApplicationToDelete == null || string.IsNullOrEmpty(Model.ApplicationToDelete.Id))
+{
+    <div class="alert alert-warning" role="alert">
+        Application not found or ID was not specified.
+    </div>
+    <p>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Application List
+        </a>
+    </p>
+}
+else
+{
+    if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="card-title mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
+        </div>
+        <div class="card-body">
+            <p class="lead">Are you sure you want to permanently delete the following client application?</p>
+            
+            <dl class="row">
+                <dt class="col-sm-4 col-md-3">Display Name</dt>
+                <dd class="col-sm-8 col-md-9">@Html.DisplayFor(model => model.ApplicationToDelete.DisplayName)</dd>
+
+                <dt class="col-sm-4 col-md-3">Client ID</dt>
+                <dd class="col-sm-8 col-md-9"><code>@Html.DisplayFor(model => model.ApplicationToDelete.ClientId)</code></dd>
+
+                <dt class="col-sm-4 col-md-3">Client Type</dt>
+                <dd class="col-sm-8 col-md-9">@Html.DisplayFor(model => model.ApplicationToDelete.ClientType)</dd>
+
+                @if (!string.IsNullOrEmpty(Model.ApplicationToDelete.ApplicationType))
+                {
+                    <dt class="col-sm-4 col-md-3">Application Type</dt>
+                    <dd class="col-sm-8 col-md-9">@Html.DisplayFor(model => model.ApplicationToDelete.ApplicationType)</dd>
+                }
+
+                @if (Model.ApplicationToDelete.ProviderId.HasValue)
+                {
+                    <dt class="col-sm-4 col-md-3">Linked Provider</dt>
+                    <dd class="col-sm-8 col-md-9">
+                        <a asp-page="/Providers/Details" asp-area="Admin" asp-route-id="@Model.ApplicationToDelete.ProviderId.Value">
+                            @Model.ApplicationToDelete.ProviderName (ID: @Model.ApplicationToDelete.ProviderId)
+                        </a>
+                    </dd>
+                }
+            </dl>
+            <hr/>
+            <p class="text-danger fw-bold">This action cannot be undone. Deleting this application may prevent clients from authenticating.</p>
+
+            <form method="post" asp-route-id="@Model.ApplicationToDelete.Id">
+                @Html.AntiForgeryToken()
+                @* The ID is passed via asp-route-id, but including it as a hidden field for BindProperty can be a fallback.
+                   However, [BindProperty] on ApplicationToDelete will bind the 'id' from the route to ApplicationToDelete.Id for POST.
+                   So, an explicit hidden field for the ID might not be strictly necessary if the route parameter is always used.
+                   Let's ensure the POST handler uses its 'id' parameter.
+                *@
+                @* <input type="hidden" asp-for="ApplicationToDelete.Id" /> *@
+                
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i>Yes, Delete This Application
+                </button>
+                <a asp-page="./Details" asp-route-id="@Model.ApplicationToDelete.Id" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>No, Cancel and View Details
+                </a>
+                <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-list me-2"></i>Back to Application List
+                </a>
+            </form>
+        </div>
+    </div>
+}

@@ -1,0 +1,136 @@
+@page "/Admin/Scopes/Edit/{id}"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes.EditModel
+@{
+    ViewData["Title"] = "Edit Scope";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Scopes</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"] - @Model.ScopeInput.Name</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-edit text-warning" style="font-size: 2rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">Modify settings for scope: <strong>@Model.ScopeInput.Name</strong></p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Scope Definition
+                </h5>
+                <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">Scope ID:</small>
+                    <code class="text-muted">@Model.ScopeInput.Id</code>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    @* Hidden field for the Scope ID is crucial for POST handler *@
+                    <input type="hidden" asp-for="ScopeInput.Id" />
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Name" class="form-label fw-semibold"></label>
+                        <input asp-for="ScopeInput.Name" class="form-control" placeholder="e.g., openid, profile, api:read_data" />
+                        <span asp-validation-for="ScopeInput.Name" class="text-danger"></span>
+                        <div class="form-text">
+                            The unique system name for the scope. Changing this might affect existing client configurations.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.DisplayName" class="form-label fw-semibold"></label>
+                        <input asp-for="ScopeInput.DisplayName" class="form-control" placeholder="e.g., Access Email Address, Read User Profile" />
+                        <span asp-validation-for="ScopeInput.DisplayName" class="text-danger"></span>
+                        <div class="form-text">
+                            A user-friendly name for this scope, often shown on consent screens.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Description" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ScopeInput.Description" class="form-control" rows="3" placeholder="e.g., Allows the application to read your email address."></textarea>
+                        <span asp-validation-for="ScopeInput.Description" class="text-danger"></span>
+                        <div class="form-text">
+                            A detailed description of what this scope allows.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Resources" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ScopeInput.Resources" class="form-control" rows="4" placeholder="e.g., my-api-audience-1
+my-other-api-audience"></textarea>
+                        <span asp-validation-for="ScopeInput.Resources" class="text-danger"></span>
+                        <div class="form-text">
+                            Enter one resource server identifier (audience) per line or separated by comma/semicolon.
+                        </div>
+                    </div>
+                    
+                    @* Placeholder for custom scope properties if added *@
+                    @*
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input asp-for="ScopeInput.RequiresElevatedConsent" class="form-check-input" role="switch" />
+                            <label asp-for="ScopeInput.RequiresElevatedConsent" class="form-check-label fw-semibold"></label>
+                        </div>
+                    </div>
+                    *@
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        @* Optionally, a link to view details if you create a separate Details page for scopes *@
+                        @* <a asp-page="./Details" asp-route-id="@Model.ScopeInput.Id" class="btn btn-outline-info ms-auto">
+                            <i class="fas fa-eye me-2"></i>View Details
+                        </a> *@
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-info">
+            <div class="card-header bg-info bg-opacity-10">
+                <h6 class="card-title mb-0 text-info">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Editing Scope
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Modifying scope details can impact how client applications request and receive access.
+                </p>
+                 <ul class="small mb-0 ps-3">
+                    <li><strong>Scope Name:</strong> If changed, clients requesting the old name will no longer match.</li>
+                    <li><strong>Resources:</strong> Changes which APIs this scope grants access to.</li>
+                    <li><strong>Display Name/Description:</strong> Affects user consent screens.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

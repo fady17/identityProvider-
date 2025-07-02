@@ -1,0 +1,144 @@
+@page "/Admin/Scopes/Create"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes.CreateModel
+@{
+    ViewData["Title"] = "Define New Scope";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Scopes</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-plus-circle text-primary" style="font-size: 2rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">Add a new scope for OpenID Connect and OAuth 2.0</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Scope Definition
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Name" class="form-label fw-semibold"></label>
+                        <input asp-for="ScopeInput.Name" class="form-control" placeholder="e.g., openid, profile, api:read_data" />
+                        <span asp-validation-for="ScopeInput.Name" class="text-danger"></span>
+                        <div class="form-text">
+                            The unique system name for the scope (e.g., <code>email</code>, <code>api:resource:action</code>).
+                            This is what client applications will request.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.DisplayName" class="form-label fw-semibold"></label>
+                        <input asp-for="ScopeInput.DisplayName" class="form-control" placeholder="e.g., Access Email Address, Read User Profile" />
+                        <span asp-validation-for="ScopeInput.DisplayName" class="text-danger"></span>
+                        <div class="form-text">
+                            A user-friendly name for this scope, often shown on consent screens.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Description" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ScopeInput.Description" class="form-control" rows="3" placeholder="e.g., Allows the application to read your email address."></textarea>
+                        <span asp-validation-for="ScopeInput.Description" class="text-danger"></span>
+                        <div class="form-text">
+                            A detailed description of what this scope allows, shown to users during consent.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ScopeInput.Resources" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ScopeInput.Resources" class="form-control" rows="4" placeholder="e.g., my-api-audience-1
+my-other-api-audience"></textarea>
+                        <span asp-validation-for="ScopeInput.Resources" class="text-danger"></span>
+                        <div class="form-text">
+                            Enter one resource server identifier (audience) per line (or separated by comma/semicolon).
+                            This scope will grant access to these resources. For example, if this scope is <code>api:orders:read</code>,
+                            the resource might be <code>order-processing-api</code>.
+                        </div>
+                    </div>
+
+                    @* Placeholder for custom scope properties if you add them to AppCustomOpenIddictScope and ScopeViewModel *@
+                    @*
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input asp-for="ScopeInput.RequiresElevatedConsent" class="form-check-input" role="switch" />
+                            <label asp-for="ScopeInput.RequiresElevatedConsent" class="form-check-label fw-semibold"></label>
+                        </div>
+                        <div class="form-text ms-3">Indicates if this scope requires a special consent step.</div>
+                    </div>
+                    *@
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Create Scope
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-info">
+            <div class="card-header bg-info bg-opacity-10">
+                <h6 class="card-title mb-0 text-info">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Understanding Scopes
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    Scopes are identifiers used by client applications to request access to specific resources or sets of user information.
+                </p>
+                <ul class="small mb-0 ps-3">
+                    <li><strong>Name:</strong> The protocol identifier (e.g., <code>profile</code>, <code>api:read</code>). Must be unique.</li>
+                    <li><strong>Display Name:</strong> Shown to users on consent screens.</li>
+                    <li><strong>Description:</strong> Explains what the scope grants.</li>
+                    <li><strong>Resources:</strong> Links this scope to specific API audiences. An access token issued for this scope will include these audiences, allowing access to the corresponding resource servers.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card border-warning mt-3">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h6 class="card-title mb-0 text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Naming Conventions
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0 ps-3">
+                    <li>Standard OIDC scopes: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>phone</code>, <code>address</code>, <code>roles</code>, <code>offline_access</code>.</li>
+                    <li>API scopes often use a prefix: e.g., <code>api:</code> or <code>resource:</code> followed by a specific permission like <code>read_user_data</code> or <code>manage_orders</code>. (e.g., <code>api:healthcare:read</code>)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

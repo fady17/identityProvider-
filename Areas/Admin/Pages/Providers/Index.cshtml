@@ -1,0 +1,985 @@
+@page
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.IndexModel
+@{
+    ViewData["Title"] = "Manage Providers";
+}
+
+<link rel="stylesheet" href="~/css/providers-index.css" />
+
+<!-- Simplified header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-12 col-lg-8">
+                <div class="header-content">
+                    <div class="header-icon">
+                        <i class="fas fa-building-columns"></i>
+                    </div>
+                    <div class="header-text">
+                        <h1>@ViewData["Title"]</h1>
+                        <p>Configure and monitor identity providers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+                <div class="header-actions">
+                    <button class="btn btn-outline" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="d-none d-sm-inline">Help</span>
+                    </button>
+                    <a href="/Admin/Providers/Create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Provider</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+        </ol>
+    </div>
+</nav>
+
+<!-- Stats cards -->
+<div class="container-fluid">
+    <div class="stats-grid">
+        <div class="stat-card stat-total">
+            <div class="stat-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count()</h3>
+                <p>Total Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-active">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count(p => p.IsActive)</h3>
+                <p>Active Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-inactive">
+            <div class="stat-icon">
+                <i class="fas fa-pause-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count(p => !p.IsActive)</h3>
+                <p>Inactive Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-rate">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@(Model.Providers.Any() ? Math.Round((double)Model.Providers.Count(p => p.IsActive) / Model.Providers.Count() * 100, 1) : 0)%</h3>
+                <p>Success Rate</p>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">
+            <div class="alert-content">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <strong>Success!</strong>
+                    <span>@TempData["SuccessMessage"]</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Providers table -->
+    <div class="providers-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-list-ul"></i>
+                <span>Identity Providers</span>
+            </div>
+            <div class="view-toggle">
+                <button class="btn btn-sm" onclick="toggleView('grid')">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button class="btn btn-sm active" onclick="toggleView('table')">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            @if (Model.Providers.Any())
+            {
+                <div class="table-container">
+                    <table class="providers-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <i class="fas fa-tag"></i>
+                                    <span class="d-none d-sm-inline">Provider</span>
+                                </th>
+                                <th class="d-none d-md-table-cell">
+                                    <i class="fas fa-code"></i>
+                                    <span>Code</span>
+                                </th>
+                                <th class="d-none d-lg-table-cell">
+                                    <i class="fas fa-globe"></i>
+                                    <span>Domain</span>
+                                </th>
+                                <th>
+                                    <i class="fas fa-toggle-on"></i>
+                                    <span class="d-none d-sm-inline">Status</span>
+                                </th>
+                                <th class="text-end">
+                                    <i class="fas fa-cogs"></i>
+                                    <span class="d-none d-sm-inline">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Providers.OrderBy(p => p.Name))
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="provider-info">
+                                            <div class="status-indicator @(item.IsActive ? "active" : "inactive")"></div>
+                                            <div class="provider-details">
+                                                <div class="provider-name">@Html.DisplayFor(modelItem => item.Name)</div>
+                                                <div class="provider-type d-sm-none">
+                                                    <span class="code-badge">@Html.DisplayFor(modelItem => item.ShortCode)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">
+                                        <span class="code-badge">@Html.DisplayFor(modelItem => item.ShortCode)</span>
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">
+                                        @if (!string.IsNullOrEmpty(item.WebsiteDomain))
+                                        {
+                                            <a href="https://@item.WebsiteDomain" target="_blank" class="domain-link">
+                                                <span>@Html.DisplayFor(modelItem => item.WebsiteDomain)</span>
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Not specified</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="status-badge active">
+                                                <i class="fas fa-check-circle"></i>
+                                                <span class="d-none d-sm-inline">Active</span>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge inactive">
+                                                <i class="fas fa-pause-circle"></i>
+                                                <span class="d-none d-sm-inline">Inactive</span>
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/Admin/Providers/Edit/@item.Id" class="btn btn-edit">
+                                                <i class="fas fa-edit"></i>
+                                                <span>Edit</span>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="fas fa-building-columns"></i>
+                    <h4>No Identity Providers Found</h4>
+                    <p>Get started by creating your first identity provider to enable authentication.</p>
+                    <a href="/Admin/Providers/Create" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i>
+                        <span>Create Your First Provider</span>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-question-circle"></i>
+                    Identity Provider Management Help
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle"></i>Understanding Status</h6>
+                        <ul class="help-list">
+                            <li>
+                                <span class="status-indicator active"></span>
+                                <strong>Active:</strong> Provider can authenticate users
+                            </li>
+                            <li>
+                                <span class="status-indicator inactive"></span>
+                                <strong>Inactive:</strong> Provider is disabled
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cogs"></i>Available Actions</h6>
+                        <ul class="help-list">
+                            <li><i class="fas fa-edit text-dark"></i><strong>Edit:</strong> Modify provider settings</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Important:</strong> Inactive providers cannot authenticate users.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleView(viewType) {
+    const buttons = document.querySelectorAll('[onclick^="toggleView"]');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.closest('button').classList.add('active');
+}
+</script>
+@* @page
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.IndexModel
+@{
+    ViewData["Title"] = "Manage Providers";
+}
+
+<link rel="stylesheet" href="~/css/providers-index.css" />
+
+<!-- Simplified header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-12 col-lg-8">
+                <div class="header-content">
+                    <div class="header-icon">
+                        <i class="fas fa-building-columns"></i>
+                    </div>
+                    <div class="header-text">
+                        <h1>@ViewData["Title"]</h1>
+                        <p>Configure and monitor identity providers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+                <div class="header-actions">
+                    <button class="btn btn-outline" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="d-none d-sm-inline">Help</span>
+                    </button>
+                    <a href="/Admin/Providers/Create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Provider</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+        </ol>
+    </div>
+</nav>
+
+<!-- Stats cards -->
+<div class="container-fluid">
+    <div class="stats-grid">
+        <div class="stat-card stat-total">
+            <div class="stat-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count()</h3>
+                <p>Total Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-active">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count(p => p.IsActive)</h3>
+                <p>Active Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-inactive">
+            <div class="stat-icon">
+                <i class="fas fa-pause-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@Model.Providers.Count(p => !p.IsActive)</h3>
+                <p>Inactive Providers</p>
+            </div>
+        </div>
+        <div class="stat-card stat-rate">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@(Model.Providers.Any() ? Math.Round((double)Model.Providers.Count(p => p.IsActive) / Model.Providers.Count() * 100, 1) : 0)%</h3>
+                <p>Success Rate</p>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">
+            <div class="alert-content">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <strong>Success!</strong>
+                    <span>@TempData["SuccessMessage"]</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Providers table -->
+    <div class="providers-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-list-ul"></i>
+                <span>Identity Providers</span>
+            </div>
+            <div class="view-toggle">
+                <button class="btn btn-sm" onclick="toggleView('grid')">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button class="btn btn-sm active" onclick="toggleView('table')">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            @if (Model.Providers.Any())
+            {
+                <div class="table-container">
+                    <table class="providers-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <i class="fas fa-tag"></i>
+                                    <span class="d-none d-sm-inline">Provider</span>
+                                </th>
+                                <th class="d-none d-md-table-cell">
+                                    <i class="fas fa-code"></i>
+                                    <span>Code</span>
+                                </th>
+                                <th class="d-none d-lg-table-cell">
+                                    <i class="fas fa-globe"></i>
+                                    <span>Domain</span>
+                                </th>
+                                <th>
+                                    <i class="fas fa-toggle-on"></i>
+                                    <span class="d-none d-sm-inline">Status</span>
+                                </th>
+                                <th class="text-end">
+                                    <i class="fas fa-cogs"></i>
+                                    <span class="d-none d-sm-inline">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Providers.OrderBy(p => p.Name))
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="provider-info">
+                                            <div class="status-indicator @(item.IsActive ? "active" : "inactive")"></div>
+                                            <div class="provider-details">
+                                                <div class="provider-name">@Html.DisplayFor(modelItem => item.Name)</div>
+                                                <div class="provider-type d-sm-none">
+                                                    <span class="code-badge">@Html.DisplayFor(modelItem => item.ShortCode)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">
+                                        <span class="code-badge">@Html.DisplayFor(modelItem => item.ShortCode)</span>
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">
+                                        @if (!string.IsNullOrEmpty(item.WebsiteDomain))
+                                        {
+                                            <a href="https://@item.WebsiteDomain" target="_blank" class="domain-link">
+                                                <span>@Html.DisplayFor(modelItem => item.WebsiteDomain)</span>
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Not specified</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="status-badge active">
+                                                <i class="fas fa-check-circle"></i>
+                                                <span class="d-none d-sm-inline">Active</span>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge inactive">
+                                                <i class="fas fa-pause-circle"></i>
+                                                <span class="d-none d-sm-inline">Inactive</span>
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/Admin/Providers/Details/@item.Id" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i>
+                                                <span>View Details</span>
+                                            </a>
+                                            <a href="/Admin/Providers/Edit/@item.Id" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-edit"></i>
+                                                <span>Edit Provider</span>
+                                            </a>
+                                            <a href="/Admin/Providers/Delete/@item.Id" class="btn btn-sm btn-danger"
+                                               onclick="return confirm('Are you sure you want to delete this provider?')">
+                                                <i class="fas fa-trash"></i>
+                                                <span>Delete</span>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="fas fa-building-columns"></i>
+                    <h4>No Identity Providers Found</h4>
+                    <p>Get started by creating your first identity provider to enable authentication.</p>
+                    <a href="/Admin/Providers/Create" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i>
+                        <span>Create Your First Provider</span>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-question-circle"></i>
+                    Identity Provider Management Help
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle"></i>Understanding Status</h6>
+                        <ul class="help-list">
+                            <li>
+                                <span class="status-indicator active"></span>
+                                <strong>Active:</strong> Provider can authenticate users
+                            </li>
+                            <li>
+                                <span class="status-indicator inactive"></span>
+                                <strong>Inactive:</strong> Provider is disabled
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cogs"></i>Available Actions</h6>
+                        <ul class="help-list">
+                            <li><i class="fas fa-eye text-info"></i><strong>View:</strong> See detailed information</li>
+                            <li><i class="fas fa-edit text-warning"></i><strong>Edit:</strong> Modify settings</li>
+                            <li><i class="fas fa-trash text-danger"></i><strong>Delete:</strong> Remove provider</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Important:</strong> Inactive providers cannot authenticate users.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleView(viewType) {
+    const buttons = document.querySelectorAll('[onclick^="toggleView"]');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.closest('button').classList.add('active');
+}
+</script>
+@* @page
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.IndexModel
+@{
+    ViewData["Title"] = "Manage Providers";
+}
+
+<!-- Enhanced header with gradient background -->
+<div class="bg-gradient-primary text-white rounded-3 p-4 mb-4 shadow-lg">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-building-columns" style="font-size: 2.5rem; opacity: 0.9;"></i>
+                </div>
+                <div>
+                    <h1 class="mb-1 fw-bold">@ViewData["Title"]</h1>
+                    <p class="mb-0 opacity-75">Configure and monitor identity providers in your system</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#helpModal">
+                    <i class="fas fa-question-circle me-1"></i>Help
+                </button>
+                <a href="/Admin/Providers/Create" class="btn btn-warning fw-semibold px-4">
+                    <i class="fas fa-plus me-2"></i>Add Provider
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center">
+        <div class="me-3">
+            <i class="fas fa-building text-primary" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+            <h1 class="mb-1">@ViewData["Title"]</h1>
+            <p class="text-muted mb-0">Configure and monitor identity providers in the system</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Enhanced stats cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-database mb-2" style="font-size: 2rem;"></i>
+                <h3 class="mb-0">@Model.Providers.Count()</h3>
+                <small class="opacity-75">Total Providers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle mb-2" style="font-size: 2rem;"></i>
+                <h3 class="mb-0">@Model.Providers.Count(p => p.IsActive)</h3>
+                <small class="opacity-75">Active Providers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-pause-circle mb-2" style="font-size: 2rem;"></i>
+                <h3 class="mb-0">@Model.Providers.Count(p => !p.IsActive)</h3>
+                <small class="opacity-75">Inactive Providers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-percentage mb-2" style="font-size: 2rem;"></i>
+                <h3 class="mb-0">@(Model.Providers.Any() ? Math.Round((double)Model.Providers.Count(p => p.IsActive) / Model.Providers.Count() * 100, 1) : 0)%</h3>
+                <small class="opacity-75">Success Rate</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-check-circle me-3 text-success" style="font-size: 1.5rem;"></i>
+            <div>
+                <strong>Success!</strong><br>
+                @TempData["SuccessMessage"]
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Modern providers table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom-0 py-3">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5 class="card-title mb-0 d-flex align-items-center">
+                    <i class="fas fa-list-ul me-2 text-primary"></i>
+                    Identity Providers
+                </h5>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleView('grid')">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm active" onclick="toggleView('table')">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Providers.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="border-0 fw-semibold text-muted">
+                                <i class="fas fa-tag me-1"></i>Provider
+                            </th>
+                            <th class="border-0 fw-semibold text-muted">
+                                <i class="fas fa-code me-1"></i>Code
+                            </th>
+                            <th class="border-0 fw-semibold text-muted">
+                                <i class="fas fa-globe me-1"></i>Domain
+                            </th>
+                            <th class="border-0 fw-semibold text-muted">
+                                <i class="fas fa-toggle-on me-1"></i>Status
+                            </th>
+                            <th class="border-0 fw-semibold text-muted text-end">
+                                <i class="fas fa-cogs me-1"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Providers.OrderBy(p => p.Name))
+                        {
+                            <tr class="border-bottom">
+                                <td class="py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            @if (item.IsActive)
+                                            {
+                                                <div class="status-indicator bg-success"></div>
+                                            }
+                                            else
+                                            {
+                                                <div class="status-indicator bg-secondary"></div>
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold text-dark">@Html.DisplayFor(modelItem => item.Name)</div>
+                                            <small class="text-muted">Identity Provider</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3">
+                                    <span class="badge bg-light text-dark border px-3 py-2 font-monospace">@Html.DisplayFor(modelItem => item.ShortCode)</span>
+                                </td>
+                                <td class="py-3">
+                                    @if (!string.IsNullOrEmpty(item.WebsiteDomain))
+                                    {
+                                        <a href="https://@item.WebsiteDomain" target="_blank" class="text-decoration-none d-flex align-items-center">
+                                            <span class="me-2">@Html.DisplayFor(modelItem => item.WebsiteDomain)</span>
+                                            <i class="fas fa-external-link-alt text-muted" style="font-size: 0.75rem;"></i>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted fst-italic">Not specified</span>
+                                    }
+                                </td>
+                                <td class="py-3">
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="badge bg-success-soft text-success px-3 py-2">
+                                            <i class="fas fa-check-circle me-1"></i>Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-soft text-secondary px-3 py-2">
+                                            <i class="fas fa-pause-circle me-1"></i>Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 text-end">
+                                    <div class="btn-group" role="group">
+                                        <a href="/Admin/Providers/Details/@item.Id" 
+                                           class="btn btn-sm btn-outline-info" 
+                                           title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/Admin/Providers/Edit/@item.Id"
+                                           class="btn btn-sm btn-outline-warning" 
+                                           title="Edit Provider">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="/Admin/Providers/Delete/@item.Id" 
+                                           class="btn btn-sm btn-outline-danger" 
+                                           title="Delete Provider"
+                                           onclick="return confirm('Are you sure you want to delete this provider?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <div class="empty-state">
+                    <i class="fas fa-building-columns text-muted mb-4" style="font-size: 4rem; opacity: 0.3;"></i>
+                    <h4 class="text-muted mb-2">No Identity Providers Found</h4>
+                    <p class="text-muted mb-4 mx-auto" style="max-width: 400px;">
+                        Get started by creating your first identity provider to enable authentication for your applications.
+                    </p>
+                    <a href="/Admin/Providers/Create" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-plus me-2"></i>Create Your First Provider
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="helpModalLabel">
+                    <i class="fas fa-question-circle me-2"></i>Identity Provider Management Help
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fas fa-info-circle text-primary me-2"></i>Understanding Status
+                        </h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <span class="status-indicator bg-success me-2"></span>
+                                <strong>Active:</strong> Provider is enabled and can authenticate users
+                            </li>
+                            <li class="mb-2">
+                                <span class="status-indicator bg-secondary me-2"></span>
+                                <strong>Inactive:</strong> Provider is disabled and cannot authenticate users
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fas fa-cogs text-warning me-2"></i>Available Actions
+                        </h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-eye text-info me-2"></i>
+                                <strong>View:</strong> See detailed provider information
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-edit text-warning me-2"></i>
+                                <strong>Edit:</strong> Modify provider settings
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-trash text-danger me-2"></i>
+                                <strong>Delete:</strong> Remove provider (requires confirmation)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <hr>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> Inactive providers cannot authenticate users. Make sure to activate providers after configuration.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.bg-success-soft {
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.bg-secondary-soft {
+    background-color: rgba(108, 117, 125, 0.1);
+}
+
+.btn-group .btn {
+    border-radius: 0.375rem;
+    margin-right: 2px;
+}
+
+.btn-group .btn:last-child {
+    margin-right: 0;
+}
+
+.empty-state {
+    padding: 2rem 0;
+}
+
+.card {
+    transition: all 0.2s ease-in-out;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease-in-out;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+
+</style>
+
+<script>
+function toggleView(viewType) {
+    // Add view toggle functionality if needed
+    const buttons = document.querySelectorAll('[onclick^="toggleView"]');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.closest('button').classList.add('active');
+}
+</script> *@
+@* @page
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.IndexModel
+@{
+    ViewData["Title"] = "Manage Providers";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    <a asp-page="Create" class="btn btn-primary">Create New Provider</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Short Code</th>
+            <th>Website Domain</th>
+            <th>Is Active</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Providers)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                <td>@Html.DisplayFor(modelItem => item.ShortCode)</td>
+                <td>@Html.DisplayFor(modelItem => item.WebsiteDomain)</td>
+                <td>@Html.DisplayFor(modelItem => item.IsActive)</td>
+                <td>
+                    <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Edit</a> |
+                    <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info">Details</a> |
+                    <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table> *@ *

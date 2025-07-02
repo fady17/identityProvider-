@@ -1,0 +1,239 @@
+@page "/Admin/Applications/Create" 
+@using OpenIddict.Abstractions
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications.CreateModel
+@{
+    ViewData["Title"] = "Register New Client Application";
+    // Assuming your _ViewStart.cshtml in Areas/Admin/Pages sets a common admin layout
+    // Layout = "_AdminLayout";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Client Applications</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-4">
+    <div class="me-3">
+        <i class="fas fa-plus-circle text-primary" style="font-size: 2rem;"></i>
+    </div>
+    <div>
+        <h1 class="mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">Define a new client application for OpenIddict</p>
+    </div>
+</div>
+
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.DisplayName" class="form-label fw-semibold"></label>
+                        <input asp-for="ApplicationInput.DisplayName" class="form-control" placeholder="e.g., My Awesome Web App" />
+                        <span asp-validation-for="ApplicationInput.DisplayName" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.ClientId" class="form-label fw-semibold"></label>
+                        <input asp-for="ApplicationInput.ClientId" class="form-control" placeholder="e.g., my_web_app_client_id" />
+                        <span asp-validation-for="ApplicationInput.ClientId" class="text-danger"></span>
+                        <div class="form-text">Must be unique across all applications.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.ClientType" class="form-label fw-semibold"></label>
+                        <select asp-for="ApplicationInput.ClientType" asp-items="Model.ApplicationInput.AvailableClientTypes" class="form-select">
+                        </select>
+                        <span asp-validation-for="ApplicationInput.ClientType" class="text-danger"></span>
+                        <div class="form-text">Public clients (SPAs, mobile) use PKCE. Confidential clients use a client secret.</div>
+                    </div>
+                    <div class="mb-3" id="clientSecretGroup" style="display: @(Model.ApplicationInput.ClientType == OpenIddictConstants.ClientTypes.Confidential ? "block" : "none");">
+                        <label asp-for="ApplicationInput.ClientSecret" class="form-label fw-semibold"></label>
+                        <div class="input-group">
+                            <input asp-for="ApplicationInput.ClientSecret" type="password" class="form-control" placeholder="Leave blank to auto-generate for new confidential client" autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button" id="toggleClientSecretVisibility">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                             <button class="btn btn-outline-secondary" type="button" id="generateClientSecret">
+                                <i class="fas fa-sync-alt"></i> Generate
+                            </button>
+                        </div>
+                        <span asp-validation-for="ApplicationInput.ClientSecret" class="text-danger"></span>
+                        <div class="form-text">Required if Client Type is 'Confidential'. If left blank, a strong secret will be generated.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="fas fa-cog me-2"></i>Advanced Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ApplicationInput.ApplicationType" class="form-label fw-semibold"></label>
+                            <select asp-for="ApplicationInput.ApplicationType" asp-items="Model.ApplicationInput.AvailableApplicationTypes" class="form-select"></select>
+                            <span asp-validation-for="ApplicationInput.ApplicationType" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ApplicationInput.ConsentType" class="form-label fw-semibold"></label>
+                            <select asp-for="ApplicationInput.ConsentType" asp-items="Model.ApplicationInput.AvailableConsentTypes" class="form-select"></select>
+                            <span asp-validation-for="ApplicationInput.ConsentType" class="text-danger"></span>
+                             <div class="form-text">Default behavior is often sufficient. 'Explicit' will always show consent screen.</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.ProviderId" class="form-label fw-semibold"></label>
+                        <select asp-for="ApplicationInput.ProviderId" asp-items="Model.ApplicationInput.AvailableProviders" class="form-select">
+                            <option value="">(None - General Application)</option>
+                        </select>
+                        <span asp-validation-for="ApplicationInput.ProviderId" class="text-danger"></span>
+                        <div class="form-text">Link this application to a specific healthcare provider if applicable.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="fas fa-link me-2"></i>Endpoint URIs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.RedirectUris" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ApplicationInput.RedirectUris" class="form-control" rows="3" placeholder="e.g., https://client.example.com/callback
+http://localhost:3000/api/auth/callback/oidc"></textarea>
+                        <span asp-validation-for="ApplicationInput.RedirectUris" class="text-danger"></span>
+                        <div class="form-text">Enter one URI per line. These are the locations the user can be redirected to after authentication.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ApplicationInput.PostLogoutRedirectUris" class="form-label fw-semibold"></label>
+                        <textarea asp-for="ApplicationInput.PostLogoutRedirectUris" class="form-control" rows="3" placeholder="e.g., https://client.example.com/loggedout
+http://localhost:3000/"></textarea>
+                        <span asp-validation-for="ApplicationInput.PostLogoutRedirectUris" class="text-danger"></span>
+                        <div class="form-text">Enter one URI per line. Locations the user can be redirected to after logout.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4 sticky-top" style="top: 20px;"> @* Make permissions card sticky *@
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="fas fa-shield-alt me-2"></i>Permissions & Requirements</h5>
+                </div>
+                <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="mb-3">
+                        <h6>Permissions</h6>
+                        @if (Model.ApplicationInput.AllAvailablePermissions != null)
+                        {
+                            var groupedPermissions = Model.ApplicationInput.AllAvailablePermissions.GroupBy(p => p.Group?.Name ?? "General");
+                            foreach (var group in groupedPermissions)
+                            {
+                                <div class="mb-2">
+                                    <strong>@group.Key</strong>
+                                    @foreach (var permission in group)
+                                    {
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="ApplicationInput.SelectedPermissions" value="@permission.Value" id="perm_@permission.Value?.Replace(":", "_").Replace(".", "_")"
+                                                   @(Model.ApplicationInput.SelectedPermissions.Contains(permission.Value!) ? "checked" : "") />
+                                            <label class="form-check-label" for="perm_@permission.Value?.Replace(":", "_").Replace(".", "_")">
+                                                @permission.Text <small class="text-muted">(@permission.Value)</small>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                    <hr/>
+                    <div class="mb-3">
+                        <h6>Requirements</h6>
+                        @if (Model.ApplicationInput.AllAvailableRequirements != null)
+                        {
+                            foreach (var requirement in Model.ApplicationInput.AllAvailableRequirements)
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="ApplicationInput.SelectedRequirements" value="@requirement.Value" id="req_@requirement.Value"
+                                           @(Model.ApplicationInput.SelectedRequirements.Contains(requirement.Value!) ? "checked" : "") />
+                                    <label class="form-check-label" for="req_@requirement.Value">
+                                        @requirement.Text
+                                    </label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2 mb-5">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-save me-2"></i>Create Application
+        </button>
+        <a asp-page="./Index" class="btn btn-outline-secondary btn-lg">
+            <i class="fas fa-times me-2"></i>Cancel
+        </a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const clientTypeSelect = document.getElementById('ApplicationInput_ClientType');
+            const clientSecretGroup = document.getElementById('clientSecretGroup');
+            const clientSecretInput = document.getElementById('ApplicationInput_ClientSecret');
+            const toggleButton = document.getElementById('toggleClientSecretVisibility');
+            const generateButton = document.getElementById('generateClientSecret');
+
+            function toggleClientSecretField() {
+                if (clientTypeSelect.value === '@OpenIddictConstants.ClientTypes.Confidential') {
+                    clientSecretGroup.style.display = 'block';
+                } else {
+                    clientSecretGroup.style.display = 'none';
+                    if(clientSecretInput) clientSecretInput.value = ''; // Clear if switching to public
+                }
+            }
+
+            if (clientTypeSelect && clientSecretGroup) {
+                clientTypeSelect.addEventListener('change', toggleClientSecretField);
+                // Initial check
+                toggleClientSecretField();
+            }
+
+            if (toggleButton && clientSecretInput) {
+                toggleButton.addEventListener('click', function () {
+                    const type = clientSecretInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    clientSecretInput.setAttribute('type', type);
+                    this.querySelector('i').classList.toggle('fa-eye');
+                    this.querySelector('i').classList.toggle('fa-eye-slash');
+                });
+            }
+
+            if (generateButton && clientSecretInput) {
+                generateButton.addEventListener('click', function() {
+                    // Simple random string generator (for demo purposes)
+                    // For production-grade secrets, use a cryptographically strong generator
+                    const array = new Uint32Array(10); // 10 * 4 bytes = 40 bytes
+                    window.crypto.getRandomValues(array);
+                    let secret = '';
+                    for (let i = 0; i < array.length; i++) {
+                        secret += array[i].toString(36);
+                    }
+                    clientSecretInput.value = secret.substring(0, Math.min(secret.length, 50)); // Limit length for example
+                     // Trigger input event for any framework listening
+                    clientSecretInput.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
+        });
+    </script>
+}

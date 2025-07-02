@@ -1,0 +1,67 @@
+@page "/Admin/Providers/Details"
+@model Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers.DetailsModel
+@{
+    ViewData["Title"] = "Provider Details";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index" asp-area="Admin">Admin Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Providers</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Provider.Name</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1>@Model.Provider.Name</h1>
+        <p class="text-muted">Provider Details</p>
+    </div>
+    
+    <div class="d-flex gap-2">
+        <a asp-page="./Edit" asp-route-id="@Model.Provider.Id" class="btn btn-primary">Edit</a>
+        <a asp-page="./Index" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Provider Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Name</label>
+                    <p>@Model.Provider.Name</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Short Code</label>
+                    <p><code>@Model.Provider.ShortCode</code></p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Website Domain</label>
+                    <p>@(Model.Provider.WebsiteDomain ?? "Not specified")</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Status</label>
+                    <p>
+                        @if (Model.Provider.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

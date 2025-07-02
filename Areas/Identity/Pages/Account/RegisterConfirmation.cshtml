@@ -1,0 +1,143 @@
+﻿@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Check Your Email";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            <svg class="text-primary" width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                            </svg>
+                        </div>
+                        <h1 class="h3 mb-3">@ViewData["Title"]</h1>
+                    </div>
+
+                    <partial name="_StatusMessage" model="Model.StatusMessage" />
+
+                    <div class="alert alert-info border-0" role="alert">
+                        <div class="d-flex align-items-start">
+                            <svg class="text-info me-2 mt-1 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                            </svg>
+                            <div>
+                                <p class="mb-2">
+                                    We've sent a <strong>6-digit confirmation code</strong> to:
+                                </p>
+                                <p class="mb-0">
+                                    <strong class="text-break">@Model.Email</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        @if (!string.IsNullOrEmpty(Model.UserId))
+                        {
+                            <a asp-page="./ConfirmEmail" 
+                               asp-route-userId="@Model.UserId" 
+                               class="btn btn-primary btn-lg">
+                                <svg class="me-2" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Enter Confirmation Code
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary btn-lg" disabled>
+                                Enter Confirmation Code
+                            </button>
+                        }
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="text-muted mb-3">
+                            <small>Didn't receive the code?</small>
+                        </p>
+                        
+                        @if (Model.CanResendCode)
+                        {
+                            <form method="post" asp-page-handler="ResendCode" class="d-inline">
+                                <input type="hidden" name="email" value="@Model.Email" />
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <svg class="me-1" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M4 12a8 8 0 018-8V2.5L14.5 5 12 7.5V6a6 6 0 100 12 6 6 0 006-6h2a8 8 0 01-16 0z"/>
+                                    </svg>
+                                    Resend Code
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-secondary" disabled>
+                                Resend Code
+                            </button>
+                        }
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top text-center">
+                        <p class="text-muted mb-0">
+                            <small>
+                                Need help? <a href="mailto:support@yourcompany.com" class="text-decoration-none">Contact Support</a>
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 12px;
+    }
+    
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    .alert {
+        border-radius: 8px;
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+    
+    @* @media (max-width: 576px) {
+        .card-body {
+            padding: 2rem 1.5rem;
+        } *@
+    }
+</style>
+@* @page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Register confirmation";
+}
+
+<h1>@ViewData["Title"]</h1>
+@{
+    if (@Model.DisplayConfirmAccountLink)
+    {
+<p>
+    This app does not currently have a real email sender registered, see <a href="https://aka.ms/aspaccountconf">these docs</a> for how to configure a real email sender.
+    Normally this would be emailed: <a id="confirm-link" href="@Model.EmailConfirmationUrl">Click here to confirm your account</a>
+</p>
+    }
+    else
+    {
+<p>
+        Please check your email to confirm your account.
+</p>
+    }
+}
+ *@

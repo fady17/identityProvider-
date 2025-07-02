@@ -1,0 +1,12 @@
+@page "/connect/authorize" 
+@* OR just @page if the folder structure Pages/Connect/Authorize.cshtml implies the route /Connect/Authorize *@
+@* Given your OpenIddict config uses "/connect/authorize", let's be explicit. *@
+@model Orjnz.IdentityProvider.Web.Pages.Connect.AuthorizeModel
+@{
+    ViewData["Title"] = "Authorize";
+    // Layout = "_Layout"; // Or your specific layout for these pages
+}
+
+<div>
+    Processing authorization request... @* This will usually not be seen as logic handles it *@
+</div>
