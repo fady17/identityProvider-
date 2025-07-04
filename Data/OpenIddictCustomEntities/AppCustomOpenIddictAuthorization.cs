@@ -1,12 +1,15 @@
-// File: Orjnz.IdentityProvider.Web/Data/OpenIddictCustomEntities/AppCustomOpenIddictAuthorization.cs
-using OpenIddict.EntityFrameworkCore.Models; // For OpenIddictEntityFrameworkCoreAuthorization
-using System;
+using OpenIddict.EntityFrameworkCore.Models;
 
 namespace Orjnz.IdentityProvider.Web.Data.OpenIddictCustomEntities
 {
-    // TKey is string, TApplication and TToken are our custom types
+    /// <summary>
+    /// Represents a custom OpenIddict authorization entity.
+    /// This class inherits from the base OpenIddict type and is defined to maintain type consistency
+    /// across the custom entity model, allowing for future extensions if needed.
+    /// </summary>
     public class AppCustomOpenIddictAuthorization : OpenIddictEntityFrameworkCoreAuthorization<string, AppCustomOpenIddictApplication, AppCustomOpenIddictToken>
     {
-        // Add custom properties here if needed for Authorizations in the future
+        // No custom properties are added at this time, but this class provides an extension point for the future.
+        // For example, one could add a property to track the device or IP address from which authorization was granted.
     }
 }

@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Services/ClaimsGenerationService.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens; // For TokenValidationParameters
@@ -17,14 +16,27 @@ using Microsoft.EntityFrameworkCore; // For FirstOrDefaultAsync if needed, and T
 
 namespace Orjnz.IdentityProvider.Web.Services
 {
+    /// <summary>
+    /// Implements the logic for creating a user's <see cref="ClaimsIdentity"/> during an OIDC flow.
+    /// This service aggregates user data, roles, and application context to produce a set of claims
+    /// that will be included in the issued tokens.
+    /// </summary>
     public class ClaimsGenerationService : IClaimsGenerationService
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IOpenIddictApplicationManager _applicationManager; // For GetClientIdAsync for logging
+        private readonly IOpenIddictApplicationManager _applicationManager;
         private readonly IOpenIddictScopeManager _scopeManager;
         private readonly ApplicationDbContext _dbContext;
         private readonly ILogger<ClaimsGenerationService> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ClaimsGenerationService"/> class.
+        /// </summary>
+        /// <param name="userManager">The ASP.NET Core manager for user entities.</param>
+        /// <param name="applicationManager">The OpenIddict manager for application entities.</param>
+        /// <param name="scopeManager">The OpenIddict manager for scope entities.</param>
+        /// <param name="dbContext">The application's database context for direct data access.</param>
+        /// <param name="logger">The logger for recording service operations.</param>
         public ClaimsGenerationService(
             UserManager<ApplicationUser> userManager,
             IOpenIddictApplicationManager applicationManager,
@@ -38,7 +50,8 @@ namespace Orjnz.IdentityProvider.Web.Services
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
-
+        
+        /// <inheritdoc/>
         public async Task<ClaimsIdentity> BuildUserClaimsIdentityAsync(
             ApplicationUser user,
             AppCustomOpenIddictApplication application,
@@ -50,15 +63,17 @@ namespace Orjnz.IdentityProvider.Web.Services
             ArgumentNullException.ThrowIfNull(application);
             ArgumentNullException.ThrowIfNull(oidcRequest);
 
+            // Create a new claims identity. The authentication type is set to a default
+            // that is compatible with standard token validation middleware.
             var identity = new ClaimsIdentity(
                 authenticationType: TokenValidationParameters.DefaultAuthenticationType,
                 nameType: Claims.Name,
                 roleType: Claims.Role);
 
             // === 1. Standard OIDC User Claims ===
-            // These claims are populated based on the user's profile and granted OIDC scopes.
+            // Populate claims based on the user's profile data and the standard OIDC scopes granted by the user.
             identity.SetClaim(Claims.Subject, await _userManager.GetUserIdAsync(user));
-            identity.SetClaim(Claims.Name, await _userManager.GetUserNameAsync(user)); // Typically the username or a display name
+            identity.SetClaim(Claims.Name, await _userManager.GetUserNameAsync(user));
 
             if (grantedScopes.Contains(Scopes.Email))
             {
@@ -70,10 +85,6 @@ namespace Orjnz.IdentityProvider.Web.Services
             {
                 if (!string.IsNullOrEmpty(user.FirstName)) identity.SetClaim(Claims.GivenName, user.FirstName);
                 if (!string.IsNullOrEmpty(user.LastName)) identity.SetClaim(Claims.FamilyName, user.LastName);
-                // Consider adding:
-                // identity.SetClaim(Claims.PreferredUsername, user.UserName); // If different from 'name'
-                // identity.SetClaim(Claims.Picture, user.ProfilePictureUrl); // TODO
-                // identity.SetClaim(Claims.UpdatedAt, new DateTimeOffset(user.UpdatedAt).ToUnixTimeSeconds()); 
             }
 
             if (grantedScopes.Contains(Scopes.Phone))
@@ -81,12 +92,12 @@ namespace Orjnz.IdentityProvider.Web.Services
                 if (!string.IsNullOrEmpty(user.PhoneNumber))
                 {
                     identity.SetClaim(Claims.PhoneNumber, user.PhoneNumber);
-                    // identity.SetClaim(Claims.PhoneNumberVerified, user.PhoneNumberConfirmed); //TODO
+                    // identity.SetClaim(Claims.PhoneNumberVerified, user.PhoneNumberConfirmed);
                 }
             }
 
             // === 2. Role Claims ===
-            // Roles are added if the 'roles' scope is granted.
+            // If the 'roles' scope was granted, fetch the user's roles and add them as claims.
             if (grantedScopes.Contains(Scopes.Roles))
             {
                 var roles = await _userManager.GetRolesAsync(user);
@@ -97,10 +108,10 @@ namespace Orjnz.IdentityProvider.Web.Services
             }
 
             // === 3. Provider-Specific Context: `provider_id` Claim and API Audience ===
-            // This section determines the provider context for the token, which influences
-            // the 'provider_id' claim and the primary API audience.
-            string? primaryApiAudience = null; // This will be the main audience for the provider's API
-            Guid? determinedProviderId = application.ProviderId; // Directly use the strongly-typed property from the linked application
+            // This logic determines the multi-tenant context for the token.
+            // The primary mechanism is the `ProviderId` property on the client application itself.
+            string? primaryApiAudience = null;
+            Guid? determinedProviderId = application.ProviderId;
 
             if (determinedProviderId.HasValue)
             {
@@ -109,12 +120,8 @@ namespace Orjnz.IdentityProvider.Web.Services
             }
             else
             {
-                // SCENARIO: Application is NOT directly linked to a Provider via its ProviderId property.
-                // Based on your requirement ("all providers should have provider-specific app no generic clients"),
-                // an application *should* ideally always have a ProviderId if it's meant to access provider-specific resources.
-                // The fallback to user.DefaultProviderId might be removed or used only for very specific "portal" type clients
-                // that are NOT provider-specific apps.
-                // For now, let's keep the user.DefaultProviderId logic but be mindful of its implications.
+                // This block acts as a fallback or handles scenarios for clients not directly tied to a provider.
+                // The logic prefers the user's default provider if the application isn't linked to one.
                 if (user.DefaultProviderId.HasValue)
                 {
                     _logger.LogInformation("Application {ClientId} has no direct ProviderId. Using User {UserId}'s DefaultProviderId: {UserDefaultProviderId} as the context.",
@@ -128,12 +135,13 @@ namespace Orjnz.IdentityProvider.Web.Services
                 }
             }
 
+            // If a provider context was determined, find the provider to set the custom claim and audience.
             if (determinedProviderId.HasValue)
             {
-                // Attempt to load the Provider entity to get its ShortCode for the audience
-                // and to confirm it's an active, valid provider.
-                Provider? provider = application.Provider; // Try navigation property first (if eager-loaded)
-                if (provider == null || provider.Id != determinedProviderId.Value) // Ensure nav property is for the correct provider
+                // Attempt to use the navigation property first if it was eager-loaded.
+                Provider? provider = application.Provider;
+                // If not loaded or mismatched, fetch directly from the database.
+                if (provider == null || provider.Id != determinedProviderId.Value)
                 {
                     _logger.LogDebug("Provider entity for ID {ProviderId} not available via navigation property or ID mismatch. Fetching from DbContext for client {ClientId}.",
                         determinedProviderId.Value, application.ClientId);
@@ -142,30 +150,27 @@ namespace Orjnz.IdentityProvider.Web.Services
 
                 if (provider != null && provider.IsActive)
                 {
+                    // Set the custom 'provider_id' claim, which the resource API will use for data tenancy.
                     identity.SetClaim("provider_id", provider.Id.ToString());
-                    primaryApiAudience = $"{provider.ShortCode}-api"; // e.g., "testclinic-api"
-                     identity.SetResources(ImmutableArray.Create(primaryApiAudience));
+                    // Construct a dynamic audience based on the provider's short code. e.g., "clinic1-api".
+                    primaryApiAudience = $"{provider.ShortCode}-api";
+                    // SetResources adds this audience to the token, primarily for the 'aud' (audience) claim.
+                    identity.SetResources(ImmutableArray.Create(primaryApiAudience));
                     _logger.LogInformation("Set 'provider_id' claim to {ProviderId} and determined primary API audience as '{ApiAudience}' for user {UserId}, client {ClientId}.",
                         provider.Id, primaryApiAudience, user.Id, application.ClientId);
                 }
                 else
                 {
+                    // This is a potential misconfiguration: a provider ID was resolved, but the provider is missing or inactive.
                     _logger.LogWarning("ProviderId {ResolvedProviderId} was determined, but a valid, active Provider entity was not found in the database. 'provider_id' claim and provider-specific audience will NOT be set for user {UserId}, client {ClientId}.",
                         determinedProviderId.Value, user.Id, application.ClientId);
-                    // If a ProviderId was expected (e.g., from application.ProviderId) but the Provider is not found/inactive,
-                    // this is a potential misconfiguration. You might choose to throw an error or prevent token issuance
-                    // if this context is critical for the client's operation.
-                    // For now, primaryApiAudience remains null, and no provider_id claim is added.
                 }
             }
-            // else: No provider context determined (e.g. a truly global client not tied to any provider or user default)
-            // The 'gis-platform-webapp' specific check is removed as per "no generic clients" for provider services.
-            // If you have other types of clients (e.g., IDP admin client), their audience logic would go here.
-
 
             // === 4. Set Scopes, Resources (Audiences), and Destinations on the Identity ===
             identity.SetScopes(grantedScopes);
 
+            // Aggregate all resource audiences for the token.
             var resourcesForToken = new HashSet<string>();
             if (!string.IsNullOrEmpty(primaryApiAudience))
             {
@@ -173,15 +178,15 @@ namespace Orjnz.IdentityProvider.Web.Services
                 _logger.LogDebug("Added primary API audience '{PrimaryAudience}' to token resources.", primaryApiAudience);
             }
 
-            // Add resources that are directly defined on the granted scopes themselves.
-            // This allows scopes to be associated with other, potentially shared, resource servers.
+            // A scope can also be associated with one or more resources (audiences).
+            // This loop adds any such resources to the token's audience list.
             if (grantedScopes.Any())
             {
                 await foreach (var resourceNameInScope in _scopeManager.ListResourcesAsync(grantedScopes, cancellationToken).WithCancellation(cancellationToken))
                 {
                     if (!string.IsNullOrEmpty(resourceNameInScope))
                     {
-                        if (resourcesForToken.Add(resourceNameInScope)) // Add returns true if item was added
+                        if (resourcesForToken.Add(resourceNameInScope))
                         {
                              _logger.LogDebug("Added audience '{ResourceFromScope}' to token resources from scope definition.", resourceNameInScope);
                         }
@@ -189,17 +194,15 @@ namespace Orjnz.IdentityProvider.Web.Services
                 }
             }
 
-            // Ensure there's at least one audience if scopes implying resources were granted.
-            // OpenIddict might default to client_id if no audience, or token validation might fail.
-            if (!resourcesForToken.Any() && grantedScopes.Any(s => s.StartsWith("api:") || s == Scopes.OfflineAccess)) // Heuristic for API scopes
+            // A warning for a potential issue where a token might be issued without a clear audience.
+            if (!resourcesForToken.Any() && grantedScopes.Any(s => s.StartsWith("api:") || s == Scopes.OfflineAccess))
             {
                 _logger.LogWarning("No specific API audience determined and no resources defined on granted scopes for client {ClientId}. Token may lack a specific 'aud' claim or use client_id by default, which could lead to API rejection.",
                     application.ClientId);
-                // Consider adding application.ClientId as a fallback audience if appropriate for your model:
-                // if (application.ClientId != null) resourcesForToken.Add(application.ClientId);
             }
             identity.SetResources(resourcesForToken.ToImmutableArray());
 
+            // Set the destinations for each claim (i.e., whether it goes into the access token, ID token, or both).
             identity.SetDestinations(GetDestinations);
 
             _logger.LogInformation("Built ClaimsIdentity for user {UserId}, Subject: {SubjectClaim}, Scopes: [{GrantedScopes}], Resources: [{TokenResources}] for client {ClientId}",
@@ -208,39 +211,39 @@ namespace Orjnz.IdentityProvider.Web.Services
             return identity;
         }
 
+        /// <summary>
+        /// A private helper method that determines the destination of a given claim.
+        /// The destination controls whether a claim is included in the access token, the ID token, or both.
+        /// </summary>
+        /// <param name="claim">The claim whose destination is to be determined.</param>
+        /// <returns>An enumeration of destination strings (e.g., "access_token", "id_token").</returns>
         private static IEnumerable<string> GetDestinations(Claim claim)
         {
             var identity = claim.Subject;
-            if (identity == null) { yield break; } // Should have an identity
+            if (identity == null) { yield break; }
 
-            // Standard OIDC practice: sub is always in id_token.
-            // Other claims in id_token if 'openid' and the relevant scope (profile, email, etc.) are present.
-            // All granted claims typically go into the access token for API use.
-
+            // The 'openid' scope must be present for any claims to be included in the ID token.
             bool isOpenIdScopePresent = identity.HasScope(Scopes.OpenId);
 
             switch (claim.Type)
             {
+                // The 'sub' claim is fundamental to both token types.
                 case Claims.Subject:
-                    yield return Destinations.AccessToken; // Often useful in access token too
+                    yield return Destinations.AccessToken;
                     if (isOpenIdScopePresent) yield return Destinations.IdentityToken;
                     yield break;
 
+                // Claims related to the 'profile' scope.
                 case Claims.Name:
                 case Claims.PreferredUsername:
-                    yield return Destinations.AccessToken;
-                    if (isOpenIdScopePresent && identity.HasScope(Scopes.Profile))
-                        yield return Destinations.IdentityToken;
-                    yield break;
-
                 case Claims.GivenName:
                 case Claims.FamilyName:
-                // Potentially other profile claims: picture, website, gender, birthdate, zoneinfo, locale, updated_at
                     yield return Destinations.AccessToken;
                     if (isOpenIdScopePresent && identity.HasScope(Scopes.Profile))
                         yield return Destinations.IdentityToken;
                     yield break;
 
+                // Claims related to the 'email' scope.
                 case Claims.Email:
                 case Claims.EmailVerified:
                     yield return Destinations.AccessToken;
@@ -248,41 +251,41 @@ namespace Orjnz.IdentityProvider.Web.Services
                         yield return Destinations.IdentityToken;
                     yield break;
 
+                // Claims related to the 'phone' scope.
                 case Claims.PhoneNumber:
-                // case Claims.PhoneNumberVerified:
                      yield return Destinations.AccessToken;
                     if (isOpenIdScopePresent && identity.HasScope(Scopes.Phone))
                         yield return Destinations.IdentityToken;
                     yield break;
                 
-                case Claims.Address: // Address is a structured claim
+                // Claims related to the 'address' scope.
+                case Claims.Address:
                     yield return Destinations.AccessToken;
                     if (isOpenIdScopePresent && identity.HasScope(Scopes.Address))
                         yield return Destinations.IdentityToken;
                     yield break;
 
+                // Claims related to the 'roles' scope.
                 case Claims.Role:
                     yield return Destinations.AccessToken;
                     if (isOpenIdScopePresent && identity.HasScope(Scopes.Roles))
                         yield return Destinations.IdentityToken;
                     yield break;
                 
-                case "provider_id": // Your custom claim
-                    yield return Destinations.AccessToken; // Essential for the provider's API
-                    if (isOpenIdScopePresent) // Generally good to include in ID token if 'openid' scope
+                // Our custom 'provider_id' claim. It's essential for the API (access token)
+                // and useful for the client (ID token).
+                case "provider_id":
+                    yield return Destinations.AccessToken;
+                    if (isOpenIdScopePresent)
                         yield return Destinations.IdentityToken;
                     yield break;
                 
-                // OpenIddict specific internal claims (auth_time, nonce, at_hash, c_hash etc.) are handled by OpenIddict for ID token.
-                // You don't typically set destinations for these.
-
-                case "AspNet.Identity.SecurityStamp": // Security stamp should NEVER be in external tokens.
+                // Internal claims like the security stamp should never be exposed in tokens.
+                case "AspNet.Identity.SecurityStamp":
                     yield break;
 
+                // Default behavior for any other claims is to include them in the access token.
                 default:
-                    // For any other custom claims or less common standard claims,
-                    // default to including them in the access token.
-                    // Only add to ID token if specifically needed by client and within OIDC best practices.
                     yield return Destinations.AccessToken;
                     yield break;
             }

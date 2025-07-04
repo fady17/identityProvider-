@@ -1,79 +1,75 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // For IdentityDbContext
-using Microsoft.AspNetCore.Identity; // For IdentityUserLogin, IdentityUserRole etc. if needed for explicit config
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Orjnz.IdentityProvider.Web.Data.OpenIddictCustomEntities; // For your custom entities
+using Orjnz.IdentityProvider.Web.Data.OpenIddictCustomEntities;
 
 namespace Orjnz.IdentityProvider.Web.Data
 {
+    /// <summary>
+    /// The Entity Framework Core database context for the application.
+    /// It serves as the primary bridge between the application's C# entity models and the database.
+    /// This context inherits from IdentityDbContext to include schemas for ASP.NET Core Identity
+    /// and is configured to also manage OpenIddict entities.
+    /// </summary>
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string>
     {
-        public DbSet<Provider> Providers { get; set; } // Your custom Provider entity
+        /// <summary>
+        /// The collection of <see cref="Provider"/> entities in the database.
+        /// </summary>
+        public DbSet<Provider> Providers { get; set; }
 
+        // Note: DbSets for OpenIddict entities (e.g., AppCustomOpenIddictApplication) are not explicitly
+        // declared here. They are managed implicitly by OpenIddict's EF Core integration when
+        // `options.UseOpenIddict()` is called during DbContext configuration in Program.cs.
 
-
-        // DbSets for OpenIddict entities (AppCustomOpenIddictApplication, etc.)
-        // will be implicitly managed by OpenIddict when you call UseEntityFrameworkCore()
-        // and ReplaceDefaultEntities() in Program.cs. You generally do not need
-        // to declare DbSet<AppCustomOpenIddictApplication> Applications { get; set; } here.
-        // OpenIddict registers its own generic OpenIddictEntityFrameworkCoreContext<..., TKey>
-        // internally or expects the DbContext you provide to be configurable for its entities.
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ApplicationDbContext"/> class.
+        /// </summary>
+        /// <param name="options">The options to be used by a DbContext.</param>
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
 
+        /// <summary>
+        /// Configures the schema needed for the identity and custom entities in the database.
+        /// </summary>
+        /// <param name="builder">The builder being used to construct the model for this context.</param>
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            // IMPORTANT: Call base.OnModelCreating first.
-            // This executes the OnModelCreating method from IdentityDbContext,
-            // applying all its default configurations for Identity entities.
+            // IMPORTANT: This call is required to configure the schema for ASP.NET Core Identity entities.
+            // It must be called before any custom configurations are applied.
             base.OnModelCreating(builder);
 
             // --- Custom Provider Entity Configuration ---
             builder.Entity<Provider>(entity =>
             {
-                // Primary Key is usually inferred by convention if property is named Id or <Type>Id,
-                // or by [Key] attribute. Explicitly defining it is also fine.
-                // entity.HasKey(p => p.Id); // Already defined by [Key] attribute in Provider.cs
-
+                // Define constraints and indexes for the Provider entity.
                 entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
                 entity.Property(p => p.ShortCode).IsRequired().HasMaxLength(50);
-                entity.HasIndex(p => p.ShortCode).IsUnique(); // Ensure ShortCode is unique
+                // Enforce uniqueness on the ShortCode property at the database level.
+                entity.HasIndex(p => p.ShortCode).IsUnique();
                 entity.Property(p => p.WebsiteDomain).HasMaxLength(256);
             });
 
             // --- Configure Relationship between AppCustomOpenIddictApplication and Provider ---
-            // Also, configure any other specific needs for AppCustomOpenIddictApplication.
-            // Even though DbSets for OpenIddict entities are not explicitly declared here,
-            // EF Core can still configure entities if they are discoverable
-            // (e.g., through navigation properties or explicit builder.Entity<T>() calls).
-            // The .ReplaceDefaultEntities() call in Program.cs will make OpenIddict aware of these types.
+            // This configuration defines the foreign key relationship from our custom OpenIddict application
+            // entity to our custom Provider entity.
             builder.Entity<AppCustomOpenIddictApplication>(application =>
             {
-                // The table name for OpenIddict applications is typically "OpenIddictApplications".
-                // This is handled by OpenIddict's .UseEntityFrameworkCore().
-                // If you needed to override:
-                // application.ToTable("YourCustomApplicationsTableName");
-
+                // Defines a one-to-many relationship: one Provider can have many Applications.
                 application.HasOne(a => a.Provider)
-                           .WithMany()
+                           .WithMany() // No corresponding navigation property on Provider needed.
                            .HasForeignKey(a => a.ProviderId)
-                           .IsRequired(false)
-                           .OnDelete(DeleteBehavior.SetNull);
+                           .IsRequired(false) // The ProviderId is optional (an application might not belong to a provider).
+                           .OnDelete(DeleteBehavior.SetNull); // If a Provider is deleted, set the ProviderId on related applications to NULL.
 
+                // Creates a database index on the ProviderId foreign key for improved query performance.
                 application.HasIndex(a => a.ProviderId)
                            .HasDatabaseName("IX_OpenIddictApplications_ProviderId");
             });
 
-            // If you add custom properties to AppCustomOpenIddictAuthorization, AppCustomOpenIddictScope,
-            // or AppCustomOpenIddictToken in the future that require Fluent API configuration,
-            // you would add them here using builder.Entity<AppCustomOpenIddictAuthorization>(auth => { ... }); etc.
-            // For example, if AppCustomOpenIddictScope had a property:
-            // builder.Entity<AppCustomOpenIddictScope>(scope =>
-            // {
-            //     scope.Property(s => s.SomeCustomScopeProperty).HasMaxLength(100);
-            // });
+            // Future entity configurations for other custom OpenIddict entities would be placed here.
+            // For example: builder.Entity<AppCustomOpenIddictScope>(scope => { ... });
         }
     }
 }

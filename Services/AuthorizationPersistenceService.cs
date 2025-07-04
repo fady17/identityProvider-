@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Services/AuthorizationPersistenceService.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
@@ -17,13 +16,24 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Orjnz.IdentityProvider.Web.Services
 {
+    /// <summary>
+    /// Provides the concrete implementation for managing the persistence of OpenIddict authorizations.
+    /// This service orchestrates interactions with OpenIddict's managers and ASP.NET Core Identity to find or create user consent records.
+    /// </summary>
     public class AuthorizationPersistenceService : IAuthorizationPersistenceService
     {
         private readonly IOpenIddictAuthorizationManager _authorizationManager;
-        private readonly IOpenIddictApplicationManager _applicationManager; // Still needed for GetIdAsync on application
+        private readonly IOpenIddictApplicationManager _applicationManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AuthorizationPersistenceService> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AuthorizationPersistenceService"/> class.
+        /// </summary>
+        /// <param name="authorizationManager">The OpenIddict manager for authorization entities.</param>
+        /// <param name="applicationManager">The OpenIddict manager for application entities.</param>
+        /// <param name="userManager">The ASP.NET Core manager for user entities.</param>
+        /// <param name="logger">The logger for recording service operations.</param>
         public AuthorizationPersistenceService(
             IOpenIddictAuthorizationManager authorizationManager,
             IOpenIddictApplicationManager applicationManager,
@@ -36,18 +46,19 @@ namespace Orjnz.IdentityProvider.Web.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<AppCustomOpenIddictAuthorization?> EnsureAuthorizationAsync( // Changed return type
+        /// <inheritdoc/>
+        public async Task<AppCustomOpenIddictAuthorization?> EnsureAuthorizationAsync(
             ClaimsPrincipal principal,
             ApplicationUser user,
-            AppCustomOpenIddictApplication application, // Changed parameter type
-            CancellationToken cancellationToken = default) // Added CancellationToken
+            AppCustomOpenIddictApplication application,
+            CancellationToken cancellationToken = default)
         {
+            // Validate incoming parameters to ensure service contract is met.
             ArgumentNullException.ThrowIfNull(principal);
             ArgumentNullException.ThrowIfNull(user);
             ArgumentNullException.ThrowIfNull(application);
 
-            string userId = await _userManager.GetUserIdAsync(user); // Does not take CT
-            // GetIdAsync on manager can take the custom app type and CT
+            string userId = await _userManager.GetUserIdAsync(user);
             string? applicationId = await _applicationManager.GetIdAsync(application, cancellationToken);
 
             if (string.IsNullOrEmpty(applicationId))
@@ -57,10 +68,13 @@ namespace Orjnz.IdentityProvider.Web.Services
                 return null;
             }
 
+            // Extract the set of scopes that were granted for this authorization request.
             var principalScopes = principal.GetScopes();
 
             AppCustomOpenIddictAuthorization? existingMatchingAuthorization = null;
-            // IOpenIddictAuthorizationManager.FindAsync returns IAsyncEnumerable<object>
+            
+            // Search for an existing permanent authorization that matches the user, client, and the exact set of scopes.
+            // The FindAsync method returns an IAsyncEnumerable of base objects, which we must iterate through.
             await foreach (var authObject in _authorizationManager.FindAsync(
                 subject: userId,
                 client: applicationId,
@@ -70,20 +84,23 @@ namespace Orjnz.IdentityProvider.Web.Services
                 cancellationToken: cancellationToken
             ).WithCancellation(cancellationToken))
             {
-                // The actual object returned by FindAsync will be AppCustomOpenIddictAuthorization
-                // because of ReplaceDefaultEntities.
+                // Because we configured OpenIddict with `ReplaceDefaultEntities`, the actual object type
+                // returned by the manager will be our custom `AppCustomOpenIddictAuthorization`. We must cast it.
                 if (authObject is AppCustomOpenIddictAuthorization concreteAuth)
                 {
                     existingMatchingAuthorization = concreteAuth;
-                    break;
+                    break; // Found a perfect match, no need to check further.
                 }
-                else if (authObject != null) // Log if it's something unexpected
+                else if (authObject != null)
                 {
+                     // This log is a safeguard. It indicates a potential misconfiguration if an object
+                     // of an unexpected type is returned by the authorization manager.
                      _logger.LogWarning("Found authorization object of unexpected type {ActualType} during FindAsync. Expected {ExpectedType}.",
                         authObject.GetType().FullName, typeof(AppCustomOpenIddictAuthorization).FullName);
                 }
             }
-
+            
+            // If a matching authorization was found, return it. This avoids creating duplicate consent records.
             if (existingMatchingAuthorization != null)
             {
                 var authId = await _authorizationManager.GetIdAsync(existingMatchingAuthorization, cancellationToken);
@@ -97,8 +114,8 @@ namespace Orjnz.IdentityProvider.Web.Services
                 "No existing permanent authorization found with exact scope match for current grant. Creating new authorization for user {UserId}, client {ClientId} with scopes [{Scopes}].",
                 userId, applicationId, string.Join(", ", principalScopes));
 
-            // CreateAsync takes the principal, subject, client (applicationId), type, and scopes.
-            // It will internally create an instance of AppCustomOpenIddictAuthorization.
+            // If no match was found, create a new permanent authorization record. This effectively "remembers" the user's consent.
+            // The CreateAsync method will internally instantiate our `AppCustomOpenIddictAuthorization` type.
             var newAuthorizationObject = await _authorizationManager.CreateAsync(
                 principal: principal,
                 subject: userId,
@@ -108,7 +125,7 @@ namespace Orjnz.IdentityProvider.Web.Services
                 cancellationToken: cancellationToken
             );
 
-            // Cast the result to our custom type.
+            // Cast the newly created object to our specific custom type to return it.
             if (newAuthorizationObject is AppCustomOpenIddictAuthorization concreteNewAuth)
             {
                 var newAuthId = await _authorizationManager.GetIdAsync(concreteNewAuth, cancellationToken);
@@ -116,149 +133,21 @@ namespace Orjnz.IdentityProvider.Web.Services
                 return concreteNewAuth;
             }
             
+            // This is an error condition, indicating that the creation failed or returned an unexpected type.
             _logger.LogError(
                 "Failed to create new authorization or the created object was not of type {ExpectedType} for user {UserId}, client {ClientId}. Actual type: {ActualType}",
                 typeof(AppCustomOpenIddictAuthorization).FullName, userId, applicationId, newAuthorizationObject?.GetType().FullName);
             return null;
         }
 
+        /// <inheritdoc/>
         public async Task<string?> GetAuthorizationIdAsync(
-            AppCustomOpenIddictAuthorization authorization, // Changed parameter type
-            CancellationToken cancellationToken = default) // Added CancellationToken
+            AppCustomOpenIddictAuthorization authorization,
+            CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(authorization);
-            // Pass CancellationToken to the manager method
+            // This is a convenience method that delegates the call directly to the OpenIddict manager.
             return await _authorizationManager.GetIdAsync(authorization, cancellationToken);
         }
     }
 }
-// // File: Orjnz.IdentityProvider.Web/Services/AuthorizationPersistenceService.cs
-// using Microsoft.AspNetCore.Identity;
-// using Microsoft.Extensions.Logging;
-// using OpenIddict.Abstractions;
-// using OpenIddict.EntityFrameworkCore.Models; // For OpenIddictEntityFrameworkCoreAuthorization etc.
-// using Orjnz.IdentityProvider.Web.Data;
-// using System;
-// using System.Collections.Generic; // For List<T>
-// using System.Collections.Immutable; // For ImmutableArray<string>
-// using System.Linq; // For Any()
-// using System.Security.Claims;
-// using System.Text.Json; // For JsonSerializer
-// using System.Threading.Tasks;
-// using static OpenIddict.Abstractions.OpenIddictConstants;
-
-// namespace Orjnz.IdentityProvider.Web.Services
-// {
-//     public class AuthorizationPersistenceService : IAuthorizationPersistenceService
-//     {
-//         private readonly IOpenIddictAuthorizationManager _authorizationManager;
-//         private readonly IOpenIddictApplicationManager _applicationManager;
-//         private readonly UserManager<ApplicationUser> _userManager;
-//         private readonly ILogger<AuthorizationPersistenceService> _logger;
-
-//         public AuthorizationPersistenceService(
-//             IOpenIddictAuthorizationManager authorizationManager,
-//             IOpenIddictApplicationManager applicationManager,
-//             UserManager<ApplicationUser> userManager,
-//             ILogger<AuthorizationPersistenceService> logger)
-//         {
-//             _authorizationManager = authorizationManager ?? throw new ArgumentNullException(nameof(authorizationManager));
-//             _applicationManager = applicationManager ?? throw new ArgumentNullException(nameof(applicationManager));
-//             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
-//             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-//         }
-
-//         public async Task<OpenIddictEntityFrameworkCoreAuthorization?> EnsureAuthorizationAsync(
-//             ClaimsPrincipal principal, // The fully built principal for the CURRENT request
-//             ApplicationUser user,
-//             OpenIddictEntityFrameworkCoreApplication application)
-//         {
-//             ArgumentNullException.ThrowIfNull(principal);
-//             ArgumentNullException.ThrowIfNull(user);
-//             ArgumentNullException.ThrowIfNull(application);
-
-//             string userId = await _userManager.GetUserIdAsync(user);
-//             string? applicationId = await _applicationManager.GetIdAsync(application);
-
-//             if (string.IsNullOrEmpty(applicationId))
-//             {
-//                 _logger.LogError("Could not retrieve ID for application {ClientIdentifier}", await _applicationManager.GetClientIdAsync(application));
-//                 return null;
-//             }
-
-//             var principalScopes = principal.GetScopes(); // Scopes from the current grant/principal
-
-//             // Attempt to find an existing PERMANENT authorization that already grants ALL of these exact scopes.
-//             // The `scopes` parameter in `FindAsync` acts as a filter.
-//             OpenIddictEntityFrameworkCoreAuthorization? existingMatchingAuthorization = null;
-//             await foreach (var authObject in _authorizationManager.FindAsync(
-//                 subject: userId,
-//                 client: applicationId,
-//                 status: Statuses.Valid,
-//                 type: AuthorizationTypes.Permanent,
-//                 scopes: principalScopes // Pass the exact scopes from the current principal
-//             ))
-//             {
-//                 if (authObject is OpenIddictEntityFrameworkCoreAuthorization concreteAuth)
-//                 {
-//                     // FindAsync with scopes should return only those matching all specified scopes.
-//                     // We can take the first one found (or LastOrDefault as in Balosar).
-//                     existingMatchingAuthorization = concreteAuth;
-//                     break; // Found a match
-//                 }
-//             }
-
-//             if (existingMatchingAuthorization != null)
-//             {
-//                 _logger.LogInformation(
-//                     "Found existing permanent authorization {AuthorizationId} with matching scopes for user {UserId}, client {ClientId}.",
-//                     await _authorizationManager.GetIdAsync(existingMatchingAuthorization), userId, applicationId);
-
-//                 // IMPORTANT: While scopes match, the *resources* associated with an old authorization aren't easily compared
-//                 // without looking at tokens issued under it. OpenIddict's token issuance will use the resources
-//                 // currently set on the 'principal' being signed in.
-//                 // If the resources associated with these scopes have changed system-wide, the new token will reflect that.
-//                 // Reusing this authorization primarily prevents re-consent for the same scopes and allows refresh token reuse.
-//                 // For stricter resource matching on reuse, more complex logic involving token introspection or
-//                 // custom properties on the authorization would be needed.
-//                 // The Balosar sample implicitly handles this by forming a new identity based on current request
-//                 // and linking it to an existing or new authorization.
-
-//                 return existingMatchingAuthorization;
-//             }
-
-//             _logger.LogInformation(
-//                 "No existing permanent authorization found with exact scope match for current grant. Creating new authorization for user {UserId}, client {ClientId} with scopes [{Scopes}].",
-//                 userId, applicationId, string.Join(", ", principalScopes));
-
-//             // Create a new authorization.
-//             // Use the overload that takes the principal AND the scopes explicitly.
-//             // The principal is used for properties, subject, client. Scopes are set on the authorization.
-//             // Resources for the token will come from what's set on the principal.Identity.SetResources().
-//             var newAuthorizationObject = await _authorizationManager.CreateAsync(
-//                 principal: principal,       // The ClaimsPrincipal containing the identity with all claims, scopes, resources, destinations
-//                 subject: userId,
-//                 client: applicationId,
-//                 type: AuthorizationTypes.Permanent,
-//                 scopes: principalScopes      // Explicitly pass the scopes for the new authorization record
-//             );
-
-//             if (newAuthorizationObject is OpenIddictEntityFrameworkCoreAuthorization concreteNewAuth)
-//             {
-//                 _logger.LogInformation("Successfully created new authorization {NewAuthId}", await _authorizationManager.GetIdAsync(concreteNewAuth));
-//                 return concreteNewAuth;
-//             }
-
-//             _logger.LogError(
-//                 "Failed to create or cast new authorization to OpenIddictEntityFrameworkCoreAuthorization for user {UserId}, client {ClientId}.",
-//                 userId, applicationId);
-//             return null;
-//         }
-
-//         public async Task<string?> GetAuthorizationIdAsync(OpenIddictEntityFrameworkCoreAuthorization authorization)
-//         {
-//             ArgumentNullException.ThrowIfNull(authorization);
-//             return await _authorizationManager.GetIdAsync(authorization);
-//         }
-//     }
-// }

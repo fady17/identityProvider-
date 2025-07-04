@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Identity/Pages/Account/ConfirmEmailModel.cshtml.cs
 #nullable disable
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
@@ -12,6 +11,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
 {
+    /// <summary>
+    /// This Razor Page model handles the logic for confirming a user's email address.
+    /// It's designed to work with the two-step confirmation process where a user enters
+    /// a 6-digit code sent to their email.
+    /// </summary>
     [AllowAnonymous]
     public class ConfirmEmailModel : PageModel
     {
@@ -21,6 +25,9 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
         private readonly ILogger<ConfirmEmailModel> _logger;
         private readonly IConfirmationCodeService _confirmationCodeService;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConfirmEmailModel"/> class.
+        /// </summary>
         public ConfirmEmailModel(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
@@ -35,20 +42,48 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             _confirmationCodeService = confirmationCodeService;
         }
 
+        /// <summary>
+        /// The unique identifier for the user whose email is being confirmed.
+        /// This is passed in the URL from the registration process.
+        /// </summary>
         [BindProperty(SupportsGet = true)]
         public string UserId { get; set; }
 
+        /// <summary>
+        // The URL to return to after successful confirmation.
+        /// </summary>
         [BindProperty(SupportsGet = true)]
         public string ReturnUrl { get; set; }
 
+        /// <summary>
+        /// The model that binds to the confirmation form's input fields.
+        /// </summary>
         [BindProperty]
         public InputModel Input { get; set; }
 
+        /// <summary>
+        /// The user object, loaded to display user-specific information like their email address.
+        /// </summary>
         public ApplicationUser CurrentUser { get; set; }
+
+        /// <summary>
+        /// The number of remaining attempts the user has to enter the correct code.
+        /// </summary>
         public int AttemptsRemaining { get; set; } = 3;
+
+        /// <summary>
+        /// A flag to control whether the "Resend Code" button is displayed.
+        /// </summary>
         public bool CanResendCode { get; set; } = true;
+
+        /// <summary>
+        /// A flag indicating if the current confirmation code has expired.
+        /// </summary>
         public bool IsCodeExpired { get; set; }
 
+        /// <summary>
+        /// Defines the data structure for the confirmation form input.
+        /// </summary>
         public class InputModel
         {
             [Required(ErrorMessage = "Please enter the 6-digit code.")]
@@ -58,9 +93,16 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             public string Code { get; set; }
         }
 
+        /// <summary>
+        /// A message to display to the user (e.g., success or error notifications).
+        /// </summary>
         [TempData]
         public string StatusMessage { get; set; }
 
+        /// <summary>
+        /// Handles the GET request for the email confirmation page. It validates the user and
+        /// sets the initial state of the page (e.g., attempts remaining).
+        /// </summary>
         public async Task<IActionResult> OnGetAsync(string userId, string returnUrl = null)
         {
             if (string.IsNullOrEmpty(userId))
@@ -76,6 +118,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
                 return RedirectToPage("./Register");
             }
 
+            // If the user's email is already confirmed, no action is needed.
             if (user.EmailConfirmed)
             {
                 StatusMessage = "Your email is already confirmed. You can now sign in.";
@@ -86,7 +129,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             UserId = userId;
             ReturnUrl = returnUrl ?? Url.Content("~/");
 
-            // Check if confirmation code exists and get status
+            // Check the status of the confirmation code from the cache.
             var codeData = await _confirmationCodeService.GetCodeDataAsync(userId);
             if (codeData == null)
             {
@@ -100,7 +143,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
                 StatusMessage = "Your confirmation code has expired. Please request a new code.";
                 IsCodeExpired = true;
                 CanResendCode = true;
-                await _confirmationCodeService.InvalidateCodeAsync(userId);
+                await _confirmationCodeService.InvalidateCodeAsync(userId); // Clean up expired code
             }
             else if (codeData.IsMaxAttemptsReached)
             {
@@ -111,13 +154,17 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             }
             else
             {
+                // If the code is active, calculate remaining attempts.
                 AttemptsRemaining = Math.Max(0, 3 - codeData.AttemptCount);
-                CanResendCode = false;
+                CanResendCode = false; // Don't allow resend if a valid code is active.
             }
 
             return Page();
         }
 
+        /// <summary>
+        /// Handles the POST request from the confirmation form submission.
+        /// </summary>
         public async Task<IActionResult> OnPostAsync()
         {
             ReturnUrl = ReturnUrl ?? Url.Content("~/");
@@ -141,19 +188,19 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
                 StatusMessage = "Error: Invalid user. Please try registering again.";
                 return RedirectToPage("./Register");
             }
-
+            
             if (user.EmailConfirmed)
             {
                 StatusMessage = "Your email is already confirmed.";
                 return RedirectToPage("./Login", new { ReturnUrl = ReturnUrl });
             }
 
-            // Validate the code using the service
+            // Use the service to validate the user-entered 6-digit code.
             var isValidCode = await _confirmationCodeService.ValidateCodeAsync(UserId, Input.Code);
             
             if (isValidCode)
             {
-                // Get the actual token for Identity confirmation
+                // If the display code is valid, retrieve the associated actual (secure) token.
                 var codeData = await _confirmationCodeService.GetCodeDataAsync(UserId);
                 if (codeData == null)
                 {
@@ -165,16 +212,14 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
 
                 _logger.LogInformation("User {UserId} entered correct confirmation code", UserId);
                 
+                // Use the actual token to confirm the email with ASP.NET Core Identity.
                 var result = await _userManager.ConfirmEmailAsync(user, codeData.ActualToken);
                 if (result.Succeeded)
                 {
                     StatusMessage = "Thank you for confirming your email! You can now sign in.";
                     _logger.LogInformation("Email confirmed successfully for UserId {UserId}", UserId);
-
-                    // Clean up the confirmation code
                     await _confirmationCodeService.InvalidateCodeAsync(UserId);
 
-                    // Send welcome email
                     try
                     {
                         var userNameForEmail = user.Email.Split('@')[0];
@@ -185,6 +230,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
                         _logger.LogWarning(ex, "Failed to send welcome email to {Email}", user.Email);
                     }
 
+                    // Redirect to login, passing the original returnUrl if it exists.
                     return RedirectToPage("./Login", new { area = "Identity", returnUrl = ReturnUrl });
                 }
                 else
@@ -199,10 +245,9 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             }
             else
             {
-                // Increment attempts and get current count
+                // If the code is incorrect, increment the attempt counter.
                 var attemptCount = await _confirmationCodeService.IncrementAttemptsAsync(UserId);
                 AttemptsRemaining = Math.Max(0, 3 - attemptCount);
-
                 _logger.LogWarning("User {UserId} entered incorrect confirmation code. Attempt {Attempt}/3", UserId, attemptCount);
 
                 if (AttemptsRemaining > 0)
@@ -214,14 +259,17 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
                 {
                     StatusMessage = "Too many incorrect attempts. Please request a new confirmation code.";
                     CanResendCode = true;
-                    // The service will handle max attempts, so we don't need to invalidate manually
                 }
             }
-
+            
+            // Reload user data to refresh the page state and re-display the form.
             await LoadUserDataAsync();
             return Page();
         }
 
+        /// <summary>
+        /// Handles the POST request to resend a confirmation code.
+        /// </summary>
         public async Task<IActionResult> OnPostResendCodeAsync()
         {
             if (string.IsNullOrEmpty(UserId))
@@ -238,17 +286,14 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
 
             try
             {
-                // Generate new codes
+                // Generate a new secure token and a new display code.
                 var actualConfirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                
-                // Use the service to generate and store new code
                 var displayCode = await _confirmationCodeService.GenerateAndStoreCodeAsync(
                     UserId, 
                     actualConfirmationToken, 
                     TimeSpan.FromMinutes(15)
                 );
 
-                // Send new code
                 var userNameForEmail = user.Email.Split('@')[0];
                 await _emailSender.SendEmailConfirmationAsync(user.Email, userNameForEmail, displayCode);
 
@@ -268,13 +313,15 @@ namespace Orjnz.IdentityProvider.Web.Areas.Identity.Pages.Account
             return Page();
         }
 
+        /// <summary>
+        /// A helper method to reload user and code status data to refresh the page's properties.
+        /// </summary>
         private async Task LoadUserDataAsync()
         {
             if (!string.IsNullOrEmpty(UserId))
             {
                 CurrentUser = await _userManager.FindByIdAsync(UserId);
                 
-                // Get current code status
                 var codeData = await _confirmationCodeService.GetCodeDataAsync(UserId);
                 if (codeData != null)
                 {

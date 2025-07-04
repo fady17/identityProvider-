@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Applications/Index.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore; // For ToListAsync on IQueryable
@@ -13,13 +12,22 @@ using System.Threading.Tasks;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
 {
-    // Authorization handled by convention in Program.cs
+    /// <summary>
+    /// This Razor Page model handles the listing of all registered client applications.
+    /// It provides a summary view and allows for filtering applications by the associated provider.
+    /// </summary>
+    /// <remarks>
+    /// Authorization is handled by convention in `Program.cs`.
+    /// </remarks>
     public class IndexModel : PageModel
     {
         private readonly IOpenIddictApplicationManager _applicationManager;
         private readonly ApplicationDbContext _dbContext; // To fetch Provider name for filter display
         private readonly ILogger<IndexModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="IndexModel"/> class.
+        /// </summary>
         public IndexModel(
             IOpenIddictApplicationManager applicationManager,
             ApplicationDbContext dbContext,
@@ -30,49 +38,60 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             _logger = logger;
         }
 
+        /// <summary>
+        /// A list of application summaries to be displayed in the main table.
+        /// </summary>
         public IList<ApplicationSummaryViewModel> Applications { get; set; } = new List<ApplicationSummaryViewModel>();
 
-        [BindProperty(SupportsGet = true)] // To bind from query string e.g., ?filterByProviderId=...
+        /// <summary>
+        /// Binds to the `filterByProviderId` query string parameter to allow filtering the application list.
+        /// </summary>
+        [BindProperty(SupportsGet = true)]
         public Guid? FilterByProviderId { get; set; }
 
-        public string? ProviderFilterName { get; set; } // To display the name of the provider being filtered by
+        /// <summary>
+        /// The name of the provider being used as a filter, for display purposes on the page.
+        /// </summary>
+        public string? ProviderFilterName { get; set; }
 
-        // ViewModel for displaying application summaries in the list
+        /// <summary>
+        /// A view model representing a summary of an application for the index list.
+        /// </summary>
         public class ApplicationSummaryViewModel
         {
-            public string? Id { get; set; } // OpenIddict Application ID (string)
+            public string? Id { get; set; }
             public string? ClientId { get; set; }
             public string? DisplayName { get; set; }
             public string? ClientType { get; set; }
             public string? ApplicationType { get; set; }
-            public Guid? ProviderId { get; set; } // To know if it's linked
-            public string? ProviderName { get; set; } // Display name of the linked provider
+            public Guid? ProviderId { get; set; }
+            public string? ProviderName { get; set; }
             public int RedirectUriCount { get; set; }
             public int PostLogoutRedirectUriCount { get; set; }
         }
 
+        /// <summary>
+        /// Handles the GET request for the index page. It fetches the list of applications,
+        /// applies any filters, and populates the `Applications` property.
+        /// </summary>
         public async Task OnGetAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Fetching list of client applications. FilterByProviderId: {FilterProviderId}", FilterByProviderId);
 
             var applicationsList = new List<ApplicationSummaryViewModel>();
-            long totalApplications = await _applicationManager.CountAsync(cancellationToken);
-            const int applicationsToFetch = 1000; // Arbitrary limit for ListAsync, adjust if needed or implement paging
-
-            // First, collect all applications into a list to avoid the async enumerable issue
-            var allApplications = new List<AppCustomOpenIddictApplication>();
             
-            await foreach (var appObject in _applicationManager.ListAsync(count: applicationsToFetch, offset: 0, cancellationToken: cancellationToken)
-                                                            .WithCancellation(cancellationToken))
+            // Collect all applications into a temporary list. This avoids issues with multiple
+            // async operations within a single `await foreach` loop.
+            var allApplications = new List<AppCustomOpenIddictApplication>();
+            await foreach (var appObject in _applicationManager.ListAsync(count: 1000, offset: 0, cancellationToken: cancellationToken).WithCancellation(cancellationToken))
             {
                 if (appObject is AppCustomOpenIddictApplication customApp)
                 {
-                    // Apply filter if ProviderId is specified
+                    // If a provider filter is active, only include applications that match the provider ID.
                     if (FilterByProviderId.HasValue && customApp.ProviderId != FilterByProviderId.Value)
                     {
-                        continue; // Skip this application if it doesn't match the filter
+                        continue;
                     }
-
                     allApplications.Add(customApp);
                 }
                 else if (appObject != null)
@@ -81,33 +100,20 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 }
             }
 
-            // Get all unique provider IDs to batch load provider names
-            var providerIds = allApplications
-                .Where(app => app.ProviderId.HasValue)
-                .Select(app => app.ProviderId!.Value)
-                .Distinct()
-                .ToList();
-
-            // Batch load provider names to avoid N+1 queries
+            // To avoid N+1 database queries, batch load all necessary provider names in a single query.
+            var providerIds = allApplications.Where(app => app.ProviderId.HasValue).Select(app => app.ProviderId!.Value).Distinct().ToList();
             var providerNames = new Dictionary<Guid, string>();
             if (providerIds.Any())
             {
-                var providers = await _dbContext.Providers
+                providerNames = await _dbContext.Providers
                     .Where(p => providerIds.Contains(p.Id))
-                    .Select(p => new { p.Id, p.Name })
                     .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
-                
-                providerNames = providers;
             }
 
-            // Now process each application without making additional async calls during enumeration
+            // Now, build the final view model list from the in-memory data.
             foreach (var customApp in allApplications)
             {
-                string? providerName = null;
-                if (customApp.ProviderId.HasValue && providerNames.TryGetValue(customApp.ProviderId.Value, out var name))
-                {
-                    providerName = name;
-                }
+                providerNames.TryGetValue(customApp.ProviderId ?? Guid.Empty, out var providerName);
 
                 var redirectUris = await _applicationManager.GetRedirectUrisAsync(customApp, cancellationToken);
                 var postLogoutRedirectUris = await _applicationManager.GetPostLogoutRedirectUrisAsync(customApp, cancellationToken);
@@ -128,18 +134,14 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
 
             Applications = applicationsList.OrderBy(a => a.DisplayName).ToList();
 
-            // Load provider filter name if needed
+            // If a filter is active, get the provider's name to display it as a page heading.
             if (FilterByProviderId.HasValue)
             {
-                if (providerNames.TryGetValue(FilterByProviderId.Value, out var filterProviderName))
+                providerNames.TryGetValue(FilterByProviderId.Value, out var filterProviderName);
+                if(string.IsNullOrEmpty(ProviderFilterName))
                 {
-                    ProviderFilterName = filterProviderName;
-                }
-                else
-                {
-                    // Fallback if provider wasn't in the batch load (shouldn't happen normally)
-                    var provider = await _dbContext.Providers.FindAsync(new object[] { FilterByProviderId.Value }, cancellationToken: cancellationToken);
-                    ProviderFilterName = provider?.Name;
+                     var provider = await _dbContext.Providers.FindAsync(new object[] { FilterByProviderId.Value }, cancellationToken: cancellationToken);
+                     ProviderFilterName = provider?.Name;
                 }
             }
 

@@ -1,13 +1,16 @@
-// File: Orjnz.IdentityProvider.Web/Data/OpenIddictCustomEntities/AppCustomOpenIddictScope.cs
-using OpenIddict.EntityFrameworkCore.Models; // For OpenIddictEntityFrameworkCoreScope
-using System;
+using OpenIddict.EntityFrameworkCore.Models;
 
 namespace Orjnz.IdentityProvider.Web.Data.OpenIddictCustomEntities
 {
-    // TKey is string
+    /// <summary>
+    /// Represents a custom OpenIddict scope entity.
+    /// This class inherits from the base OpenIddict type and is defined to maintain type consistency
+    /// across the custom entity model, allowing for future extensions if needed.
+    /// </summary>
     public class AppCustomOpenIddictScope : OpenIddictEntityFrameworkCoreScope<string>
     {
-        // Add custom properties here if needed for Scopes in the future
-        // e.g., public bool RequiresElevatedConsent { get; set; }
+        // No custom properties are added at this time, but this class provides an extension point for the future.
+        // For example, one could add a property like `public bool RequiresElevatedConsent { get; set; }`
+        // to flag scopes that need special handling in the consent UI.
     }
 }
