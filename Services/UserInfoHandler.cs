@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Services/UserInfoHandler.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
@@ -13,12 +12,22 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Orjnz.IdentityProvider.Web.Services
 {
-    // Correctly implement IOpenIddictServerHandler with the specific context type
+    /// <summary>
+    /// An OpenIddict server event handler responsible for populating the response of the UserInfo endpoint.
+    /// This handler is invoked when a client application makes a valid request to `/connect/userinfo`
+    /// with an access token. It fetches the user's data and adds the appropriate claims to the response
+    /// based on the scopes granted in the access token.
+    /// </summary>
     public class UserInfoHandler : IOpenIddictServerHandler<OpenIddictServerEvents.HandleUserinfoRequestContext>
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<UserInfoHandler> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UserInfoHandler"/> class.
+        /// </summary>
+        /// <param name="userManager">The ASP.NET Core manager for user entities.</param>
+        /// <param name="logger">The logger for recording handler operations.</param>
         public UserInfoHandler(
             UserManager<ApplicationUser> userManager,
             ILogger<UserInfoHandler> logger)
@@ -28,19 +37,20 @@ namespace Orjnz.IdentityProvider.Web.Services
         }
 
         /// <summary>
-        /// Handles the UserInfo request event to populate claims.
+        /// Asynchronously handles the <see cref="OpenIddictServerEvents.HandleUserinfoRequestContext"/> event.
+        /// This method is the entry point for the handler's logic.
         /// </summary>
+        /// <param name="context">The context for the UserInfo request event.</param>
+        /// <returns>A <see cref="ValueTask"/> that represents the asynchronous handling operation.</returns>
         public async ValueTask HandleAsync(OpenIddictServerEvents.HandleUserinfoRequestContext context)
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            // At this stage (HandleUserinfoRequestContext), OpenIddict has already validated
-            // the access token and context.Principal should be populated.
+            // By the time this handler is called, OpenIddict has already validated the access token.
+            // The `context.Principal` should contain the claims from that token.
             if (context.Principal == null)
             {
                 _logger.LogWarning("HandleUserinfoRequestContext.Principal is null. This indicates an issue in prior OpenIddict processing stages.");
-                // Normally, OpenIddict would have rejected the request before reaching this handler if the token was invalid.
-                // If it's null here, it's an unexpected state.
                 context.Reject(
                     error: Errors.InvalidToken,
                     description: "The access token is invalid or the principal could not be resolved."
@@ -59,9 +69,11 @@ namespace Orjnz.IdentityProvider.Web.Services
                 return;
             }
 
+            // Retrieve the full user object from the database to get up-to-date profile information.
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
+                // This can happen if the user was deleted after the access token was issued.
                 _logger.LogWarning("User with ID {UserId} (from token sub) not found. User might have been deleted.", userId);
                 context.Reject(
                     error: Errors.InvalidToken,
@@ -73,23 +85,20 @@ namespace Orjnz.IdentityProvider.Web.Services
             _logger.LogInformation("Handling UserInfo request for user {UserId}. Scopes in token: [{Scopes}]",
                 userId, string.Join(", ", context.Principal.GetScopes()));
 
-            // Populate context.Claims (Dictionary<string, OpenIddictParameter>)
-            // This dictionary will be used by OpenIddict to construct the UserInfo JSON response.
-
-            // The 'sub' claim is fundamental and should always be returned.
-            // OpenIddict often adds it automatically if not present, but good to be explicit.
+            // Populate the `context.Claims` dictionary. OpenIddict will use this dictionary
+            // to build the final JSON response for the UserInfo endpoint.
             context.Claims[Claims.Subject] = new OpenIddictParameter(userId);
 
+            // Add claims based on the scopes present in the access token.
             if (context.Principal.HasScope(Scopes.Profile))
             {
                 _logger.LogDebug("Profile scope present for {UserId}, adding profile claims to UserInfo.", userId);
-                if (!string.IsNullOrEmpty(user.UserName)) // Or a specific display name property
+                if (!string.IsNullOrEmpty(user.UserName))
                     context.Claims[Claims.Name] = new OpenIddictParameter(user.UserName);
                 if (!string.IsNullOrEmpty(user.FirstName))
                     context.Claims[Claims.GivenName] = new OpenIddictParameter(user.FirstName);
                 if (!string.IsNullOrEmpty(user.LastName))
                     context.Claims[Claims.FamilyName] = new OpenIddictParameter(user.LastName);
-                // Add other OIDC profile claims as needed and available
             }
 
             if (context.Principal.HasScope(Scopes.Email))
@@ -106,25 +115,17 @@ namespace Orjnz.IdentityProvider.Web.Services
                 if (!string.IsNullOrEmpty(user.PhoneNumber))
                 {
                     context.Claims[Claims.PhoneNumber] = new OpenIddictParameter(user.PhoneNumber);
-                    // context.Claims[Claims.PhoneNumberVerified] = new OpenIddictParameter(user.PhoneNumberConfirmed);
                 }
             }
 
-            if (context.Principal.HasScope(Scopes.Address))
-            {
-                // Address construction logic as before
-                // var address = new JsonObject(); ...
-                // if (address.Count > 0) context.Claims[Claims.Address] = OpenIddictParameter.FromJson(address);
-            }
-            
+            // The 'provider_id' claim was added to the access token by ClaimsGenerationService.
+            // Here, we simply read it from the token's principal and add it to the UserInfo response.
             var providerIdClaimFromToken = context.Principal.GetClaim("provider_id");
             if (providerIdClaimFromToken != null)
             {
                 _logger.LogDebug("provider_id claim found in access token for {UserId}, adding to UserInfo.", userId);
                 context.Claims["provider_id"] = new OpenIddictParameter(providerIdClaimFromToken);
             }
-            // else if (user.DefaultProviderId.HasValue && context.Principal.HasScope("some_scope_for_provider_id")) { ... }
-
 
             if (context.Principal.HasScope(Scopes.Roles))
             {
@@ -132,13 +133,13 @@ namespace Orjnz.IdentityProvider.Web.Services
                 var roles = await _userManager.GetRolesAsync(user);
                 if (roles.Any())
                 {
+                    // For multi-valued claims like roles, OpenIddict expects an array.
                     context.Claims[Claims.Role] = new OpenIddictParameter(roles.ToArray());
                 }
             }
             
             _logger.LogInformation("Populated {ClaimCount} claims for UserInfo response for user {UserId}.", context.Claims.Count, userId);
-            // If HandleAsync completes without calling context.Reject(), OpenIddict considers it handled
-            // and will use context.Claims to build the response.
+            // Completing the method without calling `context.Reject()` signals to OpenIddict that the event was handled successfully.
         }
     }
 }
