@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Applications/Delete.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
@@ -11,13 +10,22 @@ using System.Threading.Tasks;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
 {
-    // Authorization handled by convention
+    /// <summary>
+    /// This Razor Page model handles the deletion of a client application.
+    /// It provides a confirmation step to prevent accidental deletion.
+    /// </summary>
+    /// <remarks>
+    /// Authorization is handled by convention in `Program.cs`.
+    /// </remarks>
     public class DeleteModel : PageModel
     {
         private readonly IOpenIddictApplicationManager _applicationManager;
         private readonly ApplicationDbContext _dbContext; // To fetch Provider display name
         private readonly ILogger<DeleteModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DeleteModel"/> class.
+        /// </summary>
         public DeleteModel(
             IOpenIddictApplicationManager applicationManager,
             ApplicationDbContext dbContext,
@@ -28,12 +36,20 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             _logger = logger;
         }
 
-        [BindProperty] // Binds the application object for POST and its ID from route on GET
+        /// <summary>
+        /// A view model to hold the application data for display on the confirmation page.
+        /// </summary>
+        [BindProperty]
         public ApplicationDisplayViewModel ApplicationToDelete { get; set; } = new ApplicationDisplayViewModel();
 
+        /// <summary>
+        /// A property to hold any error messages to be displayed to the user.
+        /// </summary>
         public string? ErrorMessage { get; set; }
 
-        // ViewModel for display purposes on the Delete confirmation page
+        /// <summary>
+        /// A view model specifically for displaying key details of the application to be deleted.
+        /// </summary>
         public class ApplicationDisplayViewModel
         {
             public string? Id { get; set; }
@@ -45,6 +61,11 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             public string? ProviderName { get; set; }
         }
 
+        /// <summary>
+        /// Handles the GET request for the delete page. It fetches the application's details
+        /// to display them to the user for confirmation.
+        /// </summary>
+        /// <param name="id">The unique identifier of the application to be deleted.</param>
         public async Task<IActionResult> OnGetAsync(string? id)
         {
             if (string.IsNullOrEmpty(id))
@@ -54,12 +75,14 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             }
 
             var applicationObject = await _applicationManager.FindByIdAsync(id);
+            // Ensure the application exists and is of our custom type to access custom properties.
             if (applicationObject == null || !(applicationObject is AppCustomOpenIddictApplication customApplication))
             {
                 _logger.LogWarning("Delete Application GET: Application with ID {ApplicationId} not found or not of expected type.", id);
                 return NotFound($"Application with ID '{id}' not found or is not of the correct type.");
             }
 
+            // Populate the view model with data for the confirmation page.
             ApplicationToDelete.Id = await _applicationManager.GetIdAsync(customApplication);
             ApplicationToDelete.ClientId = await _applicationManager.GetClientIdAsync(customApplication);
             ApplicationToDelete.DisplayName = await _applicationManager.GetDisplayNameAsync(customApplication);
@@ -73,14 +96,15 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 ApplicationToDelete.ProviderName = provider?.Name;
             }
 
-            // Future: Could add checks here for active authorizations or tokens if strict pre-delete checks are needed,
-            // though OpenIddict's cascading delete behavior or token validation usually handles orphaned entities.
-            // For now, we rely on the user confirming the deletion of the application itself.
-
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync(string? id) // id from route
+        /// <summary>
+        /// Handles the POST request from the delete confirmation form.
+        /// This action performs the actual deletion of the application.
+        /// </summary>
+        /// <param name="id">The unique identifier of the application to be deleted.</param>
+        public async Task<IActionResult> OnPostAsync(string? id)
         {
             if (string.IsNullOrEmpty(id))
             {
@@ -91,17 +115,16 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             var applicationToDeleteObject = await _applicationManager.FindByIdAsync(id);
             if (applicationToDeleteObject == null)
             {
+                // This can happen if the application was deleted by another user/process
+                // between the GET and POST requests.
                 _logger.LogWarning("Delete Application POST: Application with ID {ApplicationId} not found. It might have been already deleted.", id);
                 TempData["ErrorMessage"] = "Application not found or already deleted.";
                 return RedirectToPage("./Index");
             }
 
-            // No need to cast to AppCustomOpenIddictApplication for DeleteAsync,
-            // as the manager works with the object it found.
-
             try
             {
-                var clientId = await _applicationManager.GetClientIdAsync(applicationToDeleteObject); // Get ClientId for logging before delete
+                var clientId = await _applicationManager.GetClientIdAsync(applicationToDeleteObject);
                 var displayName = await _applicationManager.GetDisplayNameAsync(applicationToDeleteObject);
 
                 await _applicationManager.DeleteAsync(applicationToDeleteObject);
@@ -111,15 +134,12 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 TempData["SuccessMessage"] = $"Application '{displayName}' ({clientId}) deleted successfully.";
                 return RedirectToPage("./Index");
             }
-            catch (Exception ex) // Catching general exception as concurrency or DB specific errors are less common for simple delete
+            catch (Exception ex)
             {
                 var clientIdForError = await _applicationManager.GetClientIdAsync(applicationToDeleteObject) ?? id;
                 _logger.LogError(ex, "Error deleting application {ClientIdForError}.", clientIdForError);
-                // Repopulate data for display if returning to page with error
-                // This requires re-fetching data as in OnGetAsync, or storing it in TempData/Session briefly.
-                // For simplicity, redirecting to Index with a general error message is often sufficient for delete failures.
                 TempData["ErrorMessage"] = $"An error occurred while deleting application '{clientIdForError}'. Error: {ex.Message}";
-                return RedirectToPage("./Index"); // Or return Page() after repopulating ApplicationToDelete
+                return RedirectToPage("./Index");
             }
         }
     }

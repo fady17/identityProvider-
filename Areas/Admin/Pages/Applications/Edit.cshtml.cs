@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Applications/Edit.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -17,7 +16,14 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
 {
-    // Authorization handled by convention
+    /// <summary>
+    /// This Razor Page model handles the editing of an existing client application.
+    /// It populates a form with the application's current data and processes the
+    /// submission to apply updates.
+    /// </summary>
+    /// <remarks>
+    /// Authorization is handled by convention in `Program.cs`.
+    /// </remarks>
     public class EditModel : PageModel
     {
         private readonly IOpenIddictApplicationManager _applicationManager;
@@ -25,6 +31,9 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
         private readonly ApplicationDbContext _dbContext;
         private readonly ILogger<EditModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EditModel"/> class.
+        /// </summary>
         public EditModel(
             IOpenIddictApplicationManager applicationManager,
             IOpenIddictScopeManager scopeManager,
@@ -37,9 +46,17 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
             _logger = logger;
         }
 
+        /// <summary>
+        /// The view model that binds to the edit application form.
+        /// </summary>
         [BindProperty]
         public ApplicationViewModel ApplicationInput { get; set; } = new ApplicationViewModel();
 
+        /// <summary>
+        /// Handles the GET request for the edit page. It fetches the existing application's
+        /// data and populates the view model and selection lists for the form.
+        /// </summary>
+        /// <param name="id">The unique identifier of the application to edit.</param>
         public async Task<IActionResult> OnGetAsync(string? id)
         {
             if (string.IsNullOrEmpty(id))
@@ -55,32 +72,32 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 return NotFound($"Application with ID '{id}' not found or is not of the correct custom type.");
             }
 
-            // Populate ViewModel from the custom application entity
-            ApplicationInput.Id = await _applicationManager.GetIdAsync(customApplication); // Should be same as input 'id'
+            // Populate the ApplicationInput view model from the retrieved entity.
+            ApplicationInput.Id = await _applicationManager.GetIdAsync(customApplication);
             ApplicationInput.ClientId = await _applicationManager.GetClientIdAsync(customApplication) ?? string.Empty;
             ApplicationInput.DisplayName = await _applicationManager.GetDisplayNameAsync(customApplication) ?? string.Empty;
             ApplicationInput.ClientType = await _applicationManager.GetClientTypeAsync(customApplication) ?? ClientTypes.Public;
             ApplicationInput.ApplicationType = await _applicationManager.GetApplicationTypeAsync(customApplication);
             ApplicationInput.ConsentType = await _applicationManager.GetConsentTypeAsync(customApplication);
-
             ApplicationInput.SetRedirectUrisFromStringList(await _applicationManager.GetRedirectUrisAsync(customApplication));
             ApplicationInput.SetPostLogoutRedirectUrisFromStringList(await _applicationManager.GetPostLogoutRedirectUrisAsync(customApplication));
-
             ApplicationInput.SelectedPermissions = (await _applicationManager.GetPermissionsAsync(customApplication)).ToList();
             ApplicationInput.SelectedRequirements = (await _applicationManager.GetRequirementsAsync(customApplication)).ToList();
-
             ApplicationInput.ProviderId = customApplication.ProviderId;
-            // ClientSecret is not typically displayed for edit, but if you allow changing it:
-            // ApplicationInput.ClientSecret = "**********"; // Placeholder, don't display actual secret
+            // ClientSecret is not typically displayed for edit.
+            // ApplicationInput.ClientSecret = "**********"; // Placeholder to indicate a secret exists.
 
             await PopulateSelectListsAsync();
 
             return Page();
         }
 
+        /// <summary>
+        /// Handles the POST request from the form submission to apply updates to the application.
+        /// </summary>
         public async Task<IActionResult> OnPostAsync()
         {
-            // Trim string inputs
+            // --- 1. Data Cleaning and Validation ---
             ApplicationInput.ClientId = ApplicationInput.ClientId?.Trim() ?? string.Empty;
             ApplicationInput.DisplayName = ApplicationInput.DisplayName?.Trim() ?? string.Empty;
             ApplicationInput.ClientSecret = ApplicationInput.ClientSecret?.Trim(); // Null if empty, only used if changing
@@ -107,7 +124,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 return NotFound($"Application with ID '{ApplicationInput.Id}' not found.");
             }
 
-            // Check for ClientId uniqueness if it has been changed
+            // Check for Client ID uniqueness if it was changed.
             var currentClientId = await _applicationManager.GetClientIdAsync(applicationToUpdate);
             if (currentClientId != ApplicationInput.ClientId)
             {
@@ -120,72 +137,60 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Applications
                 }
             }
 
-            // Validate ClientSecret for confidential clients if it's being changed
+            // A placeholder value might be used in the UI to indicate a secret exists without displaying it.
+            // If the user doesn't enter a new secret, we should not update it with the placeholder.
             if (ApplicationInput.ClientType == ClientTypes.Confidential && 
-                !string.IsNullOrWhiteSpace(ApplicationInput.ClientSecret) && // Only validate if a new secret is provided
-                ApplicationInput.ClientSecret == "**********") // Check if it's the placeholder
+                !string.IsNullOrWhiteSpace(ApplicationInput.ClientSecret) &&
+                ApplicationInput.ClientSecret == "**********")
             {
-                // If placeholder is submitted, it means user didn't intend to change the secret
-                ApplicationInput.ClientSecret = null; // Null it out so UpdateAsync doesn't try to update with "**********"
+                ApplicationInput.ClientSecret = null;
             }
             else if (ApplicationInput.ClientType == ClientTypes.Public && !string.IsNullOrEmpty(ApplicationInput.ClientSecret))
             {
-                ApplicationInput.ClientSecret = null; // Public clients must not have a secret
+                ApplicationInput.ClientSecret = null;
             }
 
-
-            // Create a descriptor to apply updates to the base OpenIddict properties
+            // --- 2. Update Application using Descriptor ---
+            // Populate a descriptor with the existing application's values.
             var descriptor = new OpenIddictApplicationDescriptor();
-            await _applicationManager.PopulateAsync(descriptor, applicationToUpdate); // Populate descriptor with existing values
+            await _applicationManager.PopulateAsync(descriptor, applicationToUpdate);
 
-            // Apply changes from ViewModel to descriptor
+            // Apply changes from the view model to the descriptor.
             descriptor.ClientId = ApplicationInput.ClientId;
             descriptor.DisplayName = ApplicationInput.DisplayName;
             descriptor.ClientType = ApplicationInput.ClientType;
             descriptor.ApplicationType = ApplicationInput.ApplicationType;
             descriptor.ConsentType = ApplicationInput.ConsentType;
-
-            // If a new client secret is provided (and not the placeholder), it will be hashed by UpdateAsync.
-            // If ClientSecret is null or empty, existing secret is preserved unless changing client type from confidential.
+            
+            // If a new client secret is provided, the manager will hash it upon update.
+            // If ClientSecret is null or empty, the existing secret is preserved unless changing client type.
             if (!string.IsNullOrWhiteSpace(ApplicationInput.ClientSecret))
             {
                 descriptor.ClientSecret = ApplicationInput.ClientSecret;
             }
             else if (descriptor.ClientType == ClientTypes.Public && !string.IsNullOrEmpty(descriptor.ClientSecret))
             {
-                // If changing to public and a secret was previously set, clear it
                 descriptor.ClientSecret = null;
             }
 
-
+            // Clear and re-populate collection properties to ensure a clean update.
             descriptor.RedirectUris.Clear(); 
-descriptor.RedirectUris.UnionWith(ApplicationInput.GetRedirectUrisAsImmutableArray());
+            descriptor.RedirectUris.UnionWith(ApplicationInput.GetRedirectUrisAsImmutableArray());
+            descriptor.PostLogoutRedirectUris.Clear(); 
+            descriptor.PostLogoutRedirectUris.UnionWith(ApplicationInput.GetPostLogoutRedirectUrisAsImmutableArray());
+            descriptor.Permissions.Clear(); 
+            descriptor.Permissions.UnionWith(ApplicationInput.SelectedPermissions);
+            descriptor.Requirements.Clear(); 
+            descriptor.Requirements.UnionWith(ApplicationInput.SelectedRequirements);
 
-descriptor.PostLogoutRedirectUris.Clear(); 
-descriptor.PostLogoutRedirectUris.UnionWith(ApplicationInput.GetPostLogoutRedirectUrisAsImmutableArray());
-
-descriptor.Permissions.Clear(); 
-descriptor.Permissions.UnionWith(ApplicationInput.SelectedPermissions);
-
-descriptor.Requirements.Clear(); 
-descriptor.Requirements.UnionWith(ApplicationInput.SelectedRequirements);
-
-            // Handle custom properties/settings if any were part of ApplicationViewModel and editable
-            // descriptor.Properties.Clear();
-            // descriptor.Properties["some_prop"] = System.Text.Json.JsonSerializer.SerializeToElement("new_value");
-
-
+            // --- 3. Persist Changes ---
             try
             {
-                // Update the base OpenIddict application properties
+                // Apply the descriptor changes to the main application entity.
                 await _applicationManager.UpdateAsync(applicationToUpdate, descriptor);
                 _logger.LogInformation("Successfully updated base properties for Application ID: {ApplicationId}", ApplicationInput.Id);
 
-                // Update the custom ProviderId property on our AppCustomOpenIddictApplication entity
-                // This needs to be done directly on the entity and then saved via the manager or DbContext.
-                // Since _applicationManager.UpdateAsync takes the entity, if it's our custom type, it might save all changes.
-                // Or, we might need a separate DbContext save if ProviderId is not handled by OpenIddict's UpdateAsync.
-
+                // Handle changes to our custom ProviderId property.
                 bool providerIdChanged = applicationToUpdate.ProviderId != ApplicationInput.ProviderId;
                 if (providerIdChanged)
                 {
@@ -205,27 +210,16 @@ descriptor.Requirements.UnionWith(ApplicationInput.SelectedRequirements);
                             return Page();
                         }
                     }
-                    else // ProviderId is being cleared
+                    else
                     {
                         applicationToUpdate.ProviderId = null;
                     }
-                    // The UpdateAsync above should ideally persist this change if applicationToUpdate is the tracked entity.
-                    // If OpenIddict's UpdateAsync doesn't save custom properties on the entity itself,
-                    // an explicit DbContext.SaveChanges might be needed, or ensure the manager can handle it.
-                    // For OpenIddict with EF Core, if 'applicationToUpdate' is the tracked entity from FindByIdAsync,
-                    // changes to its direct properties like ProviderId should be saved by UpdateAsync if the manager
-                    // is aware of the custom type.
-                    await _applicationManager.UpdateAsync(applicationToUpdate); // Call update again IF ProviderId is not part of descriptor model
-                                                                          // This second call might be redundant if the first UpdateAsync saves all changes on AppCustomOpenIddictApplication.
-                                                                          // It's safer to assume the first UpdateAsync handles descriptor properties,
-                                                                          // and if custom entity properties were modified directly on 'applicationToUpdate',
-                                                                          // that same UpdateAsync call (or a subsequent one if needed) should persist them.
-                                                                          // Given EF Core, if `applicationToUpdate` is tracked, changes to ProviderId are noted.
-                                                                          // The `UpdateAsync(entity, descriptor)` merges descriptor into entity.
-                                                                          // The `UpdateAsync(entity)` persists the entity state.
+                    // The OpenIddict manager's `UpdateAsync` method, when used with EF Core, will detect
+                    // changes made directly to the tracked `applicationToUpdate` entity (like ProviderId)
+                    // and persist them. Calling update again ensures this change is saved.
+                    await _applicationManager.UpdateAsync(applicationToUpdate);
                     _logger.LogInformation("Updated ProviderId for application {ClientId} to {ProviderId}", ApplicationInput.ClientId, applicationToUpdate.ProviderId);
                 }
-
 
                 TempData["SuccessMessage"] = $"Application '{ApplicationInput.DisplayName}' ({ApplicationInput.ClientId}) updated successfully.";
                 return RedirectToPage("./Index");
@@ -239,70 +233,38 @@ descriptor.Requirements.UnionWith(ApplicationInput.SelectedRequirements);
             }
         }
 
-        // Re-use the PopulateSelectListsAsync method from CreateModel (can be moved to a shared base class or service)
+        /// <summary>
+        /// A shared helper method to populate all necessary SelectList properties in the view model.
+        /// </summary>
         private async Task PopulateSelectListsAsync()
         {
-            ApplicationInput.AvailableClientTypes = new SelectList(new[]
-            {
-                new { Value = ClientTypes.Public, Text = "Public (e.g., SPAs, Mobile Apps - uses PKCE)" },
-                new { Value = ClientTypes.Confidential, Text = "Confidential (e.g., Server-side Web Apps - uses Client Secret)" }
-            }, "Value", "Text", ApplicationInput.ClientType);
-
-            ApplicationInput.AvailableApplicationTypes = new SelectList(new[]
-            {
-                new SelectListItem { Value = "", Text = "(None)" },
-                new SelectListItem { Value = ApplicationTypes.Native, Text = "Native (Desktop/Mobile App)" },
-                new SelectListItem { Value = ApplicationTypes.Web, Text = "Web Application (SPA or Server-side)" }
-            }, "Value", "Text", ApplicationInput.ApplicationType);
-
-            ApplicationInput.AvailableConsentTypes = new SelectList(new[]
-            {
-                new SelectListItem { Value = "", Text = "(Default - based on client type)" },
-                new SelectListItem { Value = ConsentTypes.Explicit, Text = "Explicit (User must always consent)" },
-                new SelectListItem { Value = ConsentTypes.Implicit, Text = "Implicit (Consent implied)" },
-                new SelectListItem { Value = ConsentTypes.External, Text = "External (Admin pre-approved)" },
-                new SelectListItem { Value = ConsentTypes.Systematic, Text = "Systematic (Consent once per scope combo)" }
-            }, "Value", "Text", ApplicationInput.ConsentType);
-
+            // This method is identical to the one in Create.cshtml.cs and populates UI controls.
+            // (Implementation details omitted for brevity, as they are documented in the CreateModel documentation).
+            ApplicationInput.AvailableClientTypes = new SelectList(new[] { new { Value = ClientTypes.Public, Text = "Public (e.g., SPAs, Mobile Apps - uses PKCE)" }, new { Value = ClientTypes.Confidential, Text = "Confidential (e.g., Server-side Web Apps - uses Client Secret)" } }, "Value", "Text", ApplicationInput.ClientType);
+            ApplicationInput.AvailableApplicationTypes = new SelectList(new[] { new SelectListItem { Value = "", Text = "(None)" }, new SelectListItem { Value = ApplicationTypes.Native, Text = "Native (Desktop/Mobile App)" }, new SelectListItem { Value = ApplicationTypes.Web, Text = "Web Application (SPA or Server-side)" } }, "Value", "Text", ApplicationInput.ApplicationType);
+            ApplicationInput.AvailableConsentTypes = new SelectList(new[] { new SelectListItem { Value = "", Text = "(Default - based on client type)" }, new SelectListItem { Value = ConsentTypes.Explicit, Text = "Explicit (User must always consent)" }, new SelectListItem { Value = ConsentTypes.Implicit, Text = "Implicit (Consent implied)" }, new SelectListItem { Value = ConsentTypes.External, Text = "External (Admin pre-approved)" }, new SelectListItem { Value = ConsentTypes.Systematic, Text = "Systematic (Consent once per scope combo)" } }, "Value", "Text", ApplicationInput.ConsentType);
             var permissions = new List<SelectListItem>();
             var endpointsGroup = new SelectListGroup { Name = "Endpoints" };
-            foreach (var field in typeof(Permissions.Endpoints).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string)))
-                permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = endpointsGroup });
-            
+            foreach (var field in typeof(Permissions.Endpoints).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))) permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = endpointsGroup });
             var grantTypesGroup = new SelectListGroup { Name = "Grant Types" };
-            foreach (var field in typeof(Permissions.GrantTypes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string)))
-                permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = grantTypesGroup });
-            
+            foreach (var field in typeof(Permissions.GrantTypes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))) permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = grantTypesGroup });
             var responseTypesGroup = new SelectListGroup { Name = "Response Types" };
-            foreach (var field in typeof(Permissions.ResponseTypes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string)))
-                permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = responseTypesGroup });
-            
+            foreach (var field in typeof(Permissions.ResponseTypes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))) permissions.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)!, Group = responseTypesGroup });
             var standardScopesGroup = new SelectListGroup { Name = "Standard Scopes" };
-            foreach (var field in typeof(OpenIddictConstants.Scopes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string)))
-                permissions.Add(new SelectListItem { Text = field.Name, Value = Permissions.Prefixes.Scope + (string)field.GetValue(null)!, Group = standardScopesGroup });
-            
+            foreach (var field in typeof(OpenIddictConstants.Scopes).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))) permissions.Add(new SelectListItem { Text = field.Name, Value = Permissions.Prefixes.Scope + (string)field.GetValue(null)!, Group = standardScopesGroup });
             var customScopesGroup = new SelectListGroup { Name = "Custom API Scopes" };
-            await foreach(var scopeObject in _scopeManager.ListAsync())
-            {
-                var scopeName = await _scopeManager.GetNameAsync(scopeObject);
-                if (!string.IsNullOrEmpty(scopeName) && !IsStandardOidcScope(scopeName))
-                    permissions.Add(new SelectListItem { Text = scopeName, Value = Permissions.Prefixes.Scope + scopeName, Group = customScopesGroup });
-            }
+            await foreach(var scopeObject in _scopeManager.ListAsync()) { var scopeName = await _scopeManager.GetNameAsync(scopeObject); if (!string.IsNullOrEmpty(scopeName) && !IsStandardOidcScope(scopeName)) permissions.Add(new SelectListItem { Text = scopeName, Value = Permissions.Prefixes.Scope + scopeName, Group = customScopesGroup }); }
             ApplicationInput.AllAvailablePermissions = permissions.OrderBy(p => p.Group?.Name).ThenBy(p => p.Text).ToList();
-
             var requirements = new List<SelectListItem>();
-            foreach (var field in typeof(Requirements).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string)))
-                requirements.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)! });
+            foreach (var field in typeof(Requirements).GetFields().Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))) requirements.Add(new SelectListItem { Text = field.Name, Value = (string)field.GetValue(null)! });
             ApplicationInput.AllAvailableRequirements = requirements.OrderBy(r => r.Text).ToList();
-
-            var providers = await _dbContext.Providers
-                                     .Where(p => p.IsActive) // Or all providers for selection, even inactive ones
-                                     .OrderBy(p => p.Name)
-                                     .Select(p => new { Id = p.Id.ToString(), p.Name }) // Ensure Id is string for SelectList
-                                     .ToListAsync();
+            var providers = await _dbContext.Providers.Where(p => p.IsActive).OrderBy(p => p.Name).Select(p => new { Id = p.Id.ToString(), p.Name }).ToListAsync();
             ApplicationInput.AvailableProviders = new SelectList(providers, "Id", "Name", ApplicationInput.ProviderId?.ToString());
         }
         
+        /// <summary>
+        /// Helper to check if a scope name is one of the standard OIDC scopes.
+        /// </summary>
         private bool IsStandardOidcScope(string scopeName)
         {
             return scopeName == OpenIddictConstants.Scopes.OpenId || scopeName == OpenIddictConstants.Scopes.Profile || scopeName == OpenIddictConstants.Scopes.Email ||

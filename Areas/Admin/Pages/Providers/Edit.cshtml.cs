@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Providers/Edit.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -11,26 +10,39 @@ using System.Threading.Tasks;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
 {
-    // Authorization for this page is handled by the convention in Program.cs
+    /// <summary>
+    /// This Razor Page model handles the editing of an existing Provider entity.
+    /// It populates a form with the provider's current data and processes the
+    /// submission to apply updates to the database.
+    /// </summary>
+    /// <remarks>
+    /// Authorization for this page is handled by the convention in `Program.cs`.
+    /// </remarks>
     public class EditModel : PageModel
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<EditModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EditModel"/> class.
+        /// </summary>
         public EditModel(ApplicationDbContext context, ILogger<EditModel> logger)
         {
             _context = context;
             _logger = logger;
         }
 
+        /// <summary>
+        /// The view model that binds to the edit provider form.
+        /// </summary>
         [BindProperty]
         public ProviderViewModel ProviderInput { get; set; } = new ProviderViewModel();
 
         /// <summary>
         /// Handles the GET request to display the edit provider form.
-        /// Loads the provider by ID and populates the ViewModel.
+        /// This method loads the provider by its ID and populates the view model.
         /// </summary>
-        /// <param name="id">The ID of the provider to edit.</param>
+        /// <param name="id">The GUID identifier of the provider to edit.</param>
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
             if (id == null)
@@ -47,7 +59,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
                 return NotFound($"Provider with ID '{id}' not found.");
             }
 
-            // Map Entity to ViewModel
+            // Map the retrieved database entity to the view model for display in the form.
             ProviderInput = new ProviderViewModel
             {
                 Id = provider.Id,
@@ -61,16 +73,16 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
         }
 
         /// <summary>
-        /// Handles the POST request to update an existing provider.
-        /// Validates input, checks for ShortCode uniqueness (if changed),
-        /// updates the entity, and saves changes.
+        /// Handles the POST request to update an existing provider in the database.
+        /// This method validates the submitted data, checks for uniqueness constraints (if applicable),
+        /// updates the entity properties, and saves the changes.
         /// </summary>
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
                 _logger.LogWarning("Edit Provider POST: Model state is invalid for Provider ID {ProviderId}.", ProviderInput.Id);
-                return Page(); // Re-display form with validation errors
+                return Page(); // Re-display the form with validation errors.
             }
 
             var providerToUpdate = await _context.Providers.FindAsync(ProviderInput.Id);
@@ -81,10 +93,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
                 return NotFound($"Provider with ID '{ProviderInput.Id}' not found.");
             }
 
-            // Normalize ShortCode if desired
-            // ProviderInput.ShortCode = ProviderInput.ShortCode.ToLowerInvariant();
-
-            // Check for ShortCode uniqueness if it has been changed
+            // If the ShortCode has been changed, we must ensure the new one is not already in use by another provider.
             if (providerToUpdate.ShortCode != ProviderInput.ShortCode)
             {
                 bool shortCodeExistsForAnotherProvider = await _context.Providers
@@ -98,13 +107,14 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
                 }
             }
 
-            // Map updated ViewModel properties back to the entity
+            // Map the updated view model properties back to the tracked database entity.
             providerToUpdate.Name = ProviderInput.Name;
             providerToUpdate.ShortCode = ProviderInput.ShortCode;
             providerToUpdate.WebsiteDomain = ProviderInput.WebsiteDomain;
             providerToUpdate.IsActive = ProviderInput.IsActive;
-            providerToUpdate.UpdatedAt = DateTime.UtcNow; // Update the timestamp
+            providerToUpdate.UpdatedAt = DateTime.UtcNow; // Update the modification timestamp.
 
+            // Explicitly set the entity's state to Modified.
             _context.Attach(providerToUpdate).State = EntityState.Modified;
 
             try
@@ -114,21 +124,19 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
                     providerToUpdate.Name, providerToUpdate.Id);
 
                 TempData["SuccessMessage"] = $"Provider '{providerToUpdate.Name}' updated successfully.";
-                return RedirectToPage("./Index"); // Redirect to the list of providers
+                return RedirectToPage("./Index");
             }
             catch (DbUpdateConcurrencyException ex)
             {
+                // This exception occurs if another user modified the same record after it was loaded.
                 _logger.LogError(ex, "Concurrency error updating provider {ProviderId}.", ProviderInput.Id);
-                // Check if the entity was deleted by another user
                 if (!await ProviderExistsAsync(ProviderInput.Id))
                 {
                     return NotFound($"Provider with ID '{ProviderInput.Id}' was deleted by another user.");
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, "The record you attempted to edit "
-                        + "was modified by another user after you got the original value. "
-                        + "Your edit operation was canceled. Please try again.");
+                    ModelState.AddModelError(string.Empty, "The record you attempted to edit was modified by another user. Your edit was canceled. Please try again.");
                 }
                 return Page();
             }
@@ -147,6 +155,10 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Providers
             }
         }
 
+        /// <summary>
+        /// A helper method to check if a provider with the given ID exists in the database.
+        /// </summary>
+        /// <param name="id">The GUID identifier of the provider.</param>
         private async Task<bool> ProviderExistsAsync(Guid id)
         {
             return await _context.Providers.AnyAsync(e => e.Id == id);
