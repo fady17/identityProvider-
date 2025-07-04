@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Scopes/Edit.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
@@ -13,21 +12,42 @@ using System.Threading.Tasks;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
 {
-    // Authorization handled by convention
+    /// <summary>
+    /// This Razor Page model handles the editing of an existing OpenIddict scope.
+    /// It populates a form with the scope's current data and processes the
+    /// submission to apply updates to the database.
+    /// </summary>
+    /// <remarks>
+    /// Authorization is handled by convention in `Program.cs`.
+    /// </remarks>
     public class EditModel : PageModel
     {
         private readonly IOpenIddictScopeManager _scopeManager;
         private readonly ILogger<EditModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EditModel"/> class.
+        /// </summary>
+        /// <param name="scopeManager">The OpenIddict manager for scope entities.</param>
+        /// <param name="logger">The logger for recording page operations.</param>
         public EditModel(IOpenIddictScopeManager scopeManager, ILogger<EditModel> logger)
         {
             _scopeManager = scopeManager;
             _logger = logger;
         }
 
+        /// <summary>
+        /// The view model that binds to the edit scope form.
+        /// </summary>
         [BindProperty]
         public ScopeViewModel ScopeInput { get; set; } = new ScopeViewModel();
 
+        /// <summary>
+        /// Handles the GET request for the edit page. It fetches the existing scope's
+        /// data and populates the view model for the form.
+        /// </summary>
+        /// <param name="id">The unique identifier of the scope to edit.</param>
+        /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
         public async Task<IActionResult> OnGetAsync(string? id, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(id))
@@ -43,24 +63,29 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                 return NotFound($"Scope with ID '{id}' not found or is not of the correct custom type.");
             }
 
-            // Populate ViewModel from the scope entity
+            // Populate the view model from the retrieved database entity.
             ScopeInput.Id = await _scopeManager.GetIdAsync(customScope, cancellationToken);
             ScopeInput.Name = await _scopeManager.GetNameAsync(customScope, cancellationToken) ?? string.Empty;
             ScopeInput.DisplayName = await _scopeManager.GetLocalizedDisplayNameAsync(customScope, cancellationToken);
             ScopeInput.Description = await _scopeManager.GetLocalizedDescriptionAsync(customScope, cancellationToken);
             
             var resources = await _scopeManager.GetResourcesAsync(customScope, cancellationToken);
+            // Convert the collection of resources into a single newline-separated string for the textarea.
             ScopeInput.Resources = resources.Any() ? string.Join(Environment.NewLine, resources) : null;
 
-            // If AppCustomOpenIddictScope had custom properties, load them here
-            // ScopeInput.RequiresElevatedConsent = customScope.RequiresElevatedConsent; // Example
+            // If AppCustomOpenIddictScope had custom properties, they would be loaded here.
+            // Example: ScopeInput.RequiresElevatedConsent = customScope.RequiresElevatedConsent;
 
             return Page();
         }
 
+        /// <summary>
+        /// Handles the POST request from the form submission to apply updates to the scope.
+        /// </summary>
+        /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
         public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
         {
-            // Trim string inputs
+            // --- 1. Data Cleaning and Validation ---
             ScopeInput.Name = ScopeInput.Name?.Trim() ?? string.Empty;
             ScopeInput.DisplayName = ScopeInput.DisplayName?.Trim();
             ScopeInput.Description = ScopeInput.Description?.Trim();
@@ -69,7 +94,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
             if (!ModelState.IsValid)
             {
                 _logger.LogWarning("Edit Scope POST: Model state is invalid for Scope ID {ScopeId}.", ScopeInput.Id);
-                return Page(); // Re-display form with validation errors
+                return Page(); // Re-display the form with validation errors.
             }
 
             if (string.IsNullOrEmpty(ScopeInput.Id))
@@ -86,7 +111,7 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                 return NotFound($"Scope with ID '{ScopeInput.Id}' not found.");
             }
 
-            // Check for Scope Name uniqueness if it has been changed
+            // If the scope name was changed, ensure the new name is not already in use.
             var currentName = await _scopeManager.GetNameAsync(scopeToUpdate, cancellationToken);
             if (currentName != ScopeInput.Name)
             {
@@ -98,17 +123,18 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                 }
             }
 
-            // Create a descriptor to apply updates
+            // --- 2. Update Scope using Descriptor ---
+            // The recommended pattern for updating OpenIddict entities is to populate a descriptor
+            // with existing values, apply changes, and then call the manager's update method.
             var descriptor = new OpenIddictScopeDescriptor();
-            // Populate descriptor with existing values from the entity first
             await _scopeManager.PopulateAsync(descriptor, scopeToUpdate, cancellationToken);
 
-            // Apply changes from ViewModel to descriptor
-            descriptor.Name = ScopeInput.Name; // Name can be updated, though often discouraged if in use
+            // Apply changes from the view model to the descriptor.
+            descriptor.Name = ScopeInput.Name;
             descriptor.DisplayName = ScopeInput.DisplayName;
             descriptor.Description = ScopeInput.Description;
 
-            descriptor.Resources.Clear(); // Clear existing resources on descriptor before adding new ones
+            descriptor.Resources.Clear(); // Clear existing resources on the descriptor before adding the new set.
             if (!string.IsNullOrWhiteSpace(ScopeInput.Resources))
             {
                 var resources = ScopeInput.Resources
@@ -122,13 +148,12 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                 }
             }
             
-            // If AppCustomOpenIddictScope had custom properties NOT on OpenIddictScopeDescriptor,
-            // you'd update them directly on the 'scopeToUpdate' entity before calling UpdateAsync(entity).
-            // scopeToUpdate.RequiresElevatedConsent = ScopeInput.RequiresElevatedConsent; // Example
+            // If custom properties were on the entity, they would be updated directly on the `scopeToUpdate` object here.
 
+            // --- 3. Persist Changes ---
             try
             {
-                // Update using the entity and the descriptor
+                // Update the entity in the database using the modified descriptor.
                 await _scopeManager.UpdateAsync(scopeToUpdate, descriptor, cancellationToken);
                 _logger.LogInformation("Successfully updated Scope: {ScopeName} (ID: {ScopeId})", ScopeInput.Name, ScopeInput.Id);
 

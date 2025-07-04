@@ -1,4 +1,3 @@
-// File: Orjnz.IdentityProvider.Web/Areas/Admin/Pages/Scopes/Create.cshtml.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
@@ -12,44 +11,64 @@ using System.Threading.Tasks;
 
 namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
 {
-    // Authorization handled by convention in Program.cs
+    /// <summary>
+    /// This Razor Page model handles the creation of new OpenIddict scopes. Scopes represent
+    /// permissions that client applications can request (e.g., 'openid', 'profile', 'api:read').
+    /// </summary>
+    /// <remarks>
+    /// Authorization for this page is handled by convention in `Program.cs`.
+    /// </remarks>
     public class CreateModel : PageModel
     {
         private readonly IOpenIddictScopeManager _scopeManager;
         private readonly ILogger<CreateModel> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CreateModel"/> class.
+        /// </summary>
+        /// <param name="scopeManager">The OpenIddict manager for scope entities.</param>
+        /// <param name="logger">The logger for recording page operations.</param>
         public CreateModel(IOpenIddictScopeManager scopeManager, ILogger<CreateModel> logger)
         {
             _scopeManager = scopeManager;
             _logger = logger;
         }
 
+        /// <summary>
+        /// The view model that binds to the create scope form.
+        /// </summary>
         [BindProperty]
         public ScopeViewModel ScopeInput { get; set; } = new ScopeViewModel();
 
+        /// <summary>
+        /// Handles the GET request to display the create scope form.
+        /// </summary>
         public IActionResult OnGet()
         {
-            // Initialize any default values for the form if needed
-            // For example, if you had a custom property on AppCustomOpenIddictScope
-            // ScopeInput.RequiresElevatedConsent = false;
+            // This method can be used to initialize any default values for the form.
             return Page();
         }
 
+        /// <summary>
+        /// Handles the POST request to create a new scope. It validates the input,
+        /// checks for name uniqueness, and uses the OpenIddict manager to persist the new scope.
+        /// </summary>
+        /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
         public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
         {
-            // Trim string inputs
+            // --- 1. Data Cleaning and Validation ---
             ScopeInput.Name = ScopeInput.Name?.Trim() ?? string.Empty;
-            ScopeInput.DisplayName = ScopeInput.DisplayName?.Trim(); // Can be null
-            ScopeInput.Description = ScopeInput.Description?.Trim(); // Can be null
-            ScopeInput.Resources = ScopeInput.Resources?.Trim(); // Can be null, will be split later
+            ScopeInput.DisplayName = ScopeInput.DisplayName?.Trim();
+            ScopeInput.Description = ScopeInput.Description?.Trim();
+            ScopeInput.Resources = ScopeInput.Resources?.Trim();
 
             if (!ModelState.IsValid)
             {
                 _logger.LogWarning("Create Scope POST: Model state is invalid.");
-                return Page(); // Re-display form with validation errors
+                return Page(); // Re-display the form with validation errors.
             }
 
-            // Check for Scope Name uniqueness
+            // Ensure the scope name is unique.
             if (await _scopeManager.FindByNameAsync(ScopeInput.Name, cancellationToken) != null)
             {
                 _logger.LogWarning("Create Scope POST: Scope name '{ScopeName}' already exists.", ScopeInput.Name);
@@ -57,20 +76,22 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                 return Page();
             }
 
+            // --- 2. Create Scope Descriptor ---
+            // The descriptor is a temporary object used to define the properties of the new scope.
             var descriptor = new OpenIddictScopeDescriptor
             {
                 Name = ScopeInput.Name,
-                DisplayName = ScopeInput.DisplayName, // Can be null if not provided
-                Description = ScopeInput.Description  // Can be null if not provided
+                DisplayName = ScopeInput.DisplayName,
+                Description = ScopeInput.Description
             };
 
-            // Process resources (audiences)
+            // Process the associated resources (audiences) from the textarea input.
             if (!string.IsNullOrWhiteSpace(ScopeInput.Resources))
             {
                 var resources = ScopeInput.Resources
                                     .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                     .Where(r => !string.IsNullOrWhiteSpace(r))
-                                    .Distinct(StringComparer.OrdinalIgnoreCase) // Avoid duplicate resources
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
                                     .ToImmutableArray();
 
                 if (resources.Any())
@@ -78,31 +99,22 @@ namespace Orjnz.IdentityProvider.Web.Areas.Admin.Pages.Scopes
                     descriptor.Resources.UnionWith(resources);
                 }
             }
-
-            // If you had custom properties on AppCustomOpenIddictScope, you'd try to set them on the descriptor
-            // if the descriptor supports them, or handle them after creation if using custom entity directly.
-            // OpenIddictScopeDescriptor is fairly standard, so custom properties are usually handled by
-            // creating the object and then updating your custom entity instance.
-            // However, for properties OpenIddict knows about (like DisplayName, Description, Resources),
-            // setting them on the descriptor is correct.
-
+            
+            // --- 3. Persist Scope ---
             try
             {
+                // Use the manager to create the scope in the database from the descriptor.
                 var scopeObject = await _scopeManager.CreateAsync(descriptor, cancellationToken);
                 if (scopeObject == null)
                 {
-                    // This would be unusual if CreateAsync doesn't throw on failure
                     throw new InvalidOperationException("Scope creation returned null.");
                 }
                 _logger.LogInformation("Successfully created Scope: {ScopeName}", ScopeInput.Name);
 
-                // If you had custom properties on AppCustomOpenIddictScope that are not on OpenIddictScopeDescriptor:
-                // if (scopeObject is AppCustomOpenIddictScope customScope)
-                // {
-                //     customScope.RequiresElevatedConsent = ScopeInput.RequiresElevatedConsent; // Example
-                //     await _scopeManager.UpdateAsync(customScope, cancellationToken);
-                //     _logger.LogInformation("Updated custom properties for Scope: {ScopeName}", ScopeInput.Name);
-                // }
+                // This is an extension point. If our custom scope entity had properties not
+                // supported by the standard descriptor, we would cast the created object here
+                // and update those properties separately.
+                // e.g., if (scopeObject is AppCustomOpenIddictScope customScope) { ... }
 
                 TempData["SuccessMessage"] = $"Scope '{ScopeInput.Name}' created successfully.";
                 return RedirectToPage("./Index");
