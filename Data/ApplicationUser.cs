@@ -1,20 +1,41 @@
-// File: ApplicationUser.cs - Fixed version
 using Microsoft.AspNetCore.Identity;
 
 namespace Orjnz.IdentityProvider.Web.Data
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
-    public class ApplicationUser : IdentityUser<string>  // Inherit from IdentityUser
+    /// <summary>
+    /// Represents a user in the application, extending the default ASP.NET Core IdentityUser.
+    /// This class allows for adding custom profile data for application users.
+    /// </summary>
+    /// <remarks>
+    /// The key for the user is of type <see cref="string"/>.
+    /// </remarks>
+    public class ApplicationUser : IdentityUser<string>
     {
-        [PersonalData] // Annotate personal data for GDPR compliance / Identity UI management
+        /// <summary>
+        /// The user's first name.
+        /// </summary>
+        /// <remarks>
+        /// Annotated with [PersonalData] to be recognized by the Identity system for GDPR data management.
+        /// </remarks>
+        [PersonalData]
         public string? FirstName { get; set; }
 
+        /// <summary>
+        /// The user's last name.
+        /// </summary>
+        /// <remarks>
+        /// Annotated with [PersonalData] to be recognized by the Identity system for GDPR data management.
+        /// </remarks>
         [PersonalData]
         public string? LastName { get; set; }
 
-        // This will store the unique ID of the healthcare provider this user might be primarily associated with.
-        // It's nullable because not all users (e.g., general platform users, IDP admins)
-        // might be directly tied to a single healthcare provider in this way.
+        /// <summary>
+        /// Gets or sets the unique identifier of the default healthcare provider this user is associated with.
+        /// This property links a user to a specific tenant or organization within the system.
+        /// </summary>
+        /// <remarks>
+        /// This is nullable because not all users (e.g., system administrators) may be directly tied to a provider.
+        /// </remarks>
         public Guid? DefaultProviderId { get; set; }
     }
 }
