@@ -1,6 +1,6 @@
 # 🪪 Orjnz Identity Provider (v2)
 
-A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple SaaS platforms with minimal configuration.
+A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple platforms with minimal configuration.
 
 ---
 
@@ -52,7 +52,8 @@ git clone https://github.com/fady17/identityProvider-.git
 cd identityProvider-
 
 # Setup your local PostgreSQL and update connection strings
-run the intial migration 
+dotnet ef migrations add InitialCreate
+
 # Apply EF Core migrations
 dotnet ef database update
 
@@ -63,7 +64,7 @@ dotnet run
 
 Default credentials are seeded (configurable):
 	•	Email: admin@orjnz.com
-	•	Password: P@ssw0rd!
+	•	Password: P@$$wOrd123!
 
 ✏️ You can change this in the DataSeeder.cs file or through the UI after login.
 
@@ -92,3 +93,6 @@ This is a personal project born from necessity and curiosity. If you have sugges
 
 ⸻
 
+📄 License
+
+MIT License © 2025
