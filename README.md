@@ -35,16 +35,14 @@ This identity provider is my attempt to **build once and reuse everywhere** — 
 A single identity server serves multiple frontend clients across brands and domains, all managed through a unified admin UI.
 
 ---
+# 🚀 Getting Started
 
-## 🚀 Getting Started
-
-### 📦 Requirements
+## 📦 Requirements
 
 - [.NET 9 SDK](https://dotnet.microsoft.com)
 - PostgreSQL
 
-
-### 🛠️ Run Locally
+## 🛠️ Run Locally
 
 ```bash
 # Clone the repo
@@ -59,39 +57,40 @@ dotnet ef database update
 
 # Run the Identity Provider
 dotnet run 
-```bash
-🔑 Admin Credentials
+```
+
+## 🔑 Admin Credentials
 
 Default credentials are seeded (configurable):
-	•	Email: admin@orjnz.com
-	•	Password: P@$$wOrd123!
+- **Email:** admin@orjnz.com
+- **Password:** P@$$wOrd123!
 
-✏️ You can change this in the DataSeeder.cs file or through the UI after login.
+✏️ You can change this in the `DataSeeder.cs` file or through the UI after login.
 
-⸻
-```bash
-📚 Case Study & Documentation
+---
 
-If you’re curious about the why, I wrote a full reflection on the lessons I learned transitioning from Duende to OpenIddict and designing for reuse:
+## 📚 Case Study & Documentation
 
-👉 Read the Case Study docs/case-study.md
+If you're curious about the why, I wrote a full reflection on the lessons I learned transitioning from Duende to OpenIddict and designing for reuse:
 
-⸻
-```bash
-🔐 Security Status
+👉 Read the Case Study `docs/case-study.md`
+
+---
+
+## 🔐 Security Status
 
 ⚠️ This project is currently in alpha and not hardened for production use. Please conduct your own security review before deploying in sensitive environments.
 
-⸻
-💬 Feedback & Contributions
+---
+
+## 💬 Feedback & Contributions
 
 This is a personal project born from necessity and curiosity. If you have suggestions, ideas, or use cases — feel free to:
-	•	Open an issue
-	•	Fork and experiment
-	
+- Open an issue
+- Fork and experiment
 
-⸻
+---
 
-📄 License
+## 📄 License
 
 MIT License © 2025
