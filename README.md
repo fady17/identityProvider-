@@ -59,7 +59,7 @@ dotnet ef database update
 
 # Run the Identity Provider
 dotnet run 
-
+```bash
 🔑 Admin Credentials
 
 Default credentials are seeded (configurable):
@@ -69,21 +69,20 @@ Default credentials are seeded (configurable):
 ✏️ You can change this in the DataSeeder.cs file or through the UI after login.
 
 ⸻
-
+```bash
 📚 Case Study & Documentation
 
 If you’re curious about the why, I wrote a full reflection on the lessons I learned transitioning from Duende to OpenIddict and designing for reuse:
 
-👉 Read the Case Study
+👉 Read the Case Study docs/case-study.md
 
 ⸻
-
+```bash
 🔐 Security Status
 
 ⚠️ This project is currently in alpha and not hardened for production use. Please conduct your own security review before deploying in sensitive environments.
 
 ⸻
-
 💬 Feedback & Contributions
 
 This is a personal project born from necessity and curiosity. If you have suggestions, ideas, or use cases — feel free to:
