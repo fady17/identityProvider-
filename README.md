@@ -52,7 +52,8 @@ git clone https://github.com/fady17/identityProvider-.git
 cd identityProvider-
 
 # Setup your local PostgreSQL and update connection strings
-run the intial migration 
+dotnet ef migrations add InitialCreate
+
 # Apply EF Core migrations
 dotnet ef database update
 
