@@ -1,6 +1,6 @@
 # 🪪 Orjnz Identity Provider (v2)
 
-A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple SaaS platforms with minimal configuration.
+A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple platforms with minimal configuration.
 
 ---
 
@@ -63,7 +63,7 @@ dotnet run
 
 Default credentials are seeded (configurable):
 	•	Email: admin@orjnz.com
-	•	Password: P@ssw0rd!
+	•	Password: P@$$wOrd123!
 
 ✏️ You can change this in the DataSeeder.cs file or through the UI after login.
 
@@ -92,3 +92,6 @@ This is a personal project born from necessity and curiosity. If you have sugges
 
 ⸻
 
+📄 License
+
+MIT License © 2025
