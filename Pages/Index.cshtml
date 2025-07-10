@@ -1,10 +1,58 @@
 ﻿@page
-@model IndexModel
+@model Orjnz.IdentityProvider.Web.Pages.IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Orjnz Identity Provider";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4">Orjnz Identity Provider</h1>
+        <p class="lead">
+            A reusable OpenID Connect identity system built for multi-tenant platforms and admin extensibility.
+        </p>
+        <div class="mt-4">
+            <a href="https://github.com/fady17/identityProvider-v2.git" target="_blank" class="btn btn-dark me-2">View on GitHub</a>
+            <a href="/Admin/Applications" class="btn btn-outline-secondary">Go to Admin Panel</a>
+        </div>
+    </div>
+
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">🔐 Multi-Tenant Aware</h5>
+                    <p class="card-text">Built from the ground up to support scoped authentication flows per tenant or provider.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">🧱 Based on OpenIddict</h5>
+                    <p class="card-text">Leverages the OpenIddict core for protocol compliance while providing your own identity logic and UI.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">⚙️ Admin Dashboard</h5>
+                    <p class="card-text">Manage clients, scopes, and external providers via an integrated admin UI — no code required.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5 text-center">
+        <h2 class="h4 mb-3">Why This Project Exists</h2>
+        <p class="text-muted">
+            Originally a one-off solution for a logistics startup, this IdP evolved into a reusable identity foundation for future systems. 
+            The idea was simple: build once, manage from a UI, and scale to any Project need.
+        </p>
+        <a href="https://github.com/fady17/identityProvider-v2/blob/main/docs/case-study.md" target="_blank" class="btn btn-link mt-3">Read the full case study →</a>
+    </div>
+
+    <footer class="text-center text-muted mt-5 pt-4 border-top">
+        <small>MIT Licensed • v1.0 • Built by Fady • <a href="https://github.com/fady17/identityProvider-v2" target="_blank">GitHub</a></small>
+    </footer>
 </div>

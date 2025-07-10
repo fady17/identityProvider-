@@ -82,7 +82,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     {
         // Security policy: Users must confirm their email before they can sign in.
-        options.SignIn.RequireConfirmedAccount = true;
+        // options.SignIn.RequireConfirmedAccount = true;
 
         // Password complexity requirements for enhanced security.
         options.Password.RequireDigit = true;
