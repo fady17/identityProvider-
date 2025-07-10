@@ -248,7 +248,7 @@ namespace Orjnz.IdentityProvider.Web.Infrastructure
             _logger.LogInformation("Application seeding pass completed.");
         }
 
-        private async Task SeedAdminRoleAndUserAsync(UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, CancellationToken cancellationToken)
+private async Task SeedAdminRoleAndUserAsync(UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, CancellationToken cancellationToken)
         {
             
             
@@ -288,10 +288,9 @@ namespace Orjnz.IdentityProvider.Web.Infrastructure
                 _logger.LogInformation("Assigned user {AdminEmail} to role {RoleName}", adminEmail, adminRoleName);
             }
         }
-
-        private static string? ConvertJsonElementToString(JsonElement element, string clientId, string key, ILogger logger)
+             private static string? ConvertJsonElementToString(JsonElement element, string clientId, string key, ILogger logger)
         {
-            // ... (ConvertJsonElementToString logic remains the same) ...
+
             switch (element.ValueKind)
             {
                 case JsonValueKind.String: return element.GetString();
