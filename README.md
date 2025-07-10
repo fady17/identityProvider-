@@ -64,7 +64,7 @@ dotnet run
 Default credentials are seeded (configurable):
 - **Email:** admin@orjnz.com
 - **Password:** P@$$wOrd123!
-https://localhost:7066/Identity/Account/Login?ReturnUrl=%2FAdmin%2FScopes
+
 ✏️ You can change this in the `DataSeeder.cs` file or through the UI after login.
 
 ---
