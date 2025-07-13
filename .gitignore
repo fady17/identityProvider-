@@ -51,8 +51,7 @@ Migrations
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
-appsettings.Development.json
-appsettings.json
+
 # Build Results of an ATL Project
 [Dd]ebugPS/
 [Rr]eleasePS/
