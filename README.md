@@ -1,6 +1,6 @@
 # 🪪 Orjnz Identity Provider (v2)
 
-A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple platforms with minimal configuration.
+A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET**, **OpenIddict**, and **PostgreSQL** — designed to be used across multiple platforms with minimal configuration.
 
 ---
 
@@ -62,7 +62,8 @@ Default credentials are seeded (configurable):
 
 ⚠️ This project is currently in alpha and not hardened for production use. Please conduct your own security review before deploying in sensitive environments.
 
-
+## TODO
+ADD Docker Support
 
 ## 📜 License
 
