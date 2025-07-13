@@ -6,8 +6,6 @@ A reusable, multi-tenant OpenID Connect Identity Provider built with **.NET 9**,
 
 ## ✨ Why This Exists
 
-During a logistics platform project, I needed a simple authentication system — but ended up going deeper than expected. What started as overengineering turned into a reusable identity layer I could use across all my future platforms and client projects.
-
 This identity provider is my attempt to **build once and reuse everywhere** — with support for:
 - Adding OAuth providers via the Admin UI
 - Issuing tenant-aware tokens
@@ -24,17 +22,8 @@ This identity provider is my attempt to **build once and reuse everywhere** — 
   - Applications (OIDC Clients)
   - Users
 - ✅ Works with `next-auth` or any OIDC-compliant client
-- ✅ Case study and documentation included
 
----
 
-## 📸 Architecture Diagram
-
-![Architecture](docs/assets/identity-architecture.png)
-
-A single identity server serves multiple frontend clients across brands and domains, all managed through a unified admin UI.
-
----
 # 🚀 Getting Started
 
 ## 📦 Requirements
@@ -47,10 +36,10 @@ A single identity server serves multiple frontend clients across brands and doma
 ```bash
 # Clone the repo
 git clone https://github.com/fady17/identityProvider-.git
-cd identityProvider-
+cd identityProvider-v2
 
 # Setup your local PostgreSQL and update connection strings
-dotnet ef migrations add InitialCreate
+dotnet ef migrations add OIDC
 
 # Apply EF Core migrations
 dotnet ef database update
@@ -69,28 +58,12 @@ Default credentials are seeded (configurable):
 
 ---
 
-## 📚 Case Study & Documentation
-
-If you're curious about the why, I wrote a full reflection on the lessons I learned transitioning from Duende to OpenIddict and designing for reuse:
-
-👉 Read the Case Study `docs/case-study.md`
-
----
-
 ## 🔐 Security Status
 
 ⚠️ This project is currently in alpha and not hardened for production use. Please conduct your own security review before deploying in sensitive environments.
 
----
 
-## 💬 Feedback & Contributions
 
-This is a personal project born from necessity and curiosity. If you have suggestions, ideas, or use cases — feel free to:
-- Open an issue
-- Fork and experiment
+## 📜 License
 
----
-
-## 📄 License
-
-MIT License © 2025
+This project is open source and available under the [MIT License](LICENSE).
